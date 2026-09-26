@@ -2,10 +2,12 @@
    Uso: npm run crear-admin -- <usuario> <contraseña> ["Nombre"] */
 import { leerConfig } from '../src/config.js';
 import { crearContexto } from '../src/services/index.js';
+import { abrirDB } from '../src/db/abrir.js';
 
 const [codigo, password, nombre = 'Administración'] = process.argv.slice(2);
 if (!codigo || !password) { console.error('Uso: npm run crear-admin -- <usuario> <contraseña> ["Nombre"]'); process.exit(1); }
-const ctx = crearContexto({ ...leerConfig(), admin: { codigo, password, nombre } });
+const cfg = { ...leerConfig(), admin: { codigo, password, nombre } };
+const ctx = crearContexto(cfg, { db: abrirDB(cfg.dbPath) });
 const u = ctx.s.usuarios.porCodigo(codigo);
 if (u) {
   ctx.s.usuarios.cambiarSecreto(u.id, password);

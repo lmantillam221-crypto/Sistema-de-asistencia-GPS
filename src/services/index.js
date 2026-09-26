@@ -1,5 +1,4 @@
 import { EventEmitter } from 'node:events';
-import { abrirDB } from '../db/index.js';
 import { crearReloj } from '../domain/tiempo.js';
 import { servicioEmpresa } from './empresa.js';
 import { servicioAuditoria } from './auditoria.js';
@@ -10,11 +9,11 @@ import { servicioAsistencia } from './asistencia.js';
 import { servicioMultas } from './multas.js';
 import { servicioCoberturas } from './coberturas.js';
 import { servicioRecordatorios } from './recordatorios.js';
-import { pinAleatorio } from '../lib/seguridad.js';
 
-/** Crea el contexto de la aplicación: base de datos, reloj, bus de eventos y servicios. */
-export function crearContexto(cfg, { db = null, ahora } = {}) {
-  const ctx = { cfg, db: db || abrirDB(cfg.dbPath), reloj: crearReloj({ ahora }), bus: new EventEmitter(), s: {} };
+/** Crea el contexto de la aplicación a partir de una base ya abierta y migrada (abrirDB, sql.js…). */
+export function crearContexto(cfg, { db, ahora } = {}) {
+  if (!db) throw new Error('crearContexto necesita una base de datos abierta.');
+  const ctx = { cfg, db, reloj: crearReloj({ ahora }), bus: new EventEmitter(), s: {} };
   ctx.bus.setMaxListeners(500);
   ctx.s.empresa = servicioEmpresa(ctx);
   ctx.s.auditoria = servicioAuditoria(ctx);
@@ -29,15 +28,14 @@ export function crearContexto(cfg, { db = null, ahora } = {}) {
   return ctx;
 }
 
-/** Primer arranque: datos de la empresa y primer administrador. */
+/** Primer arranque: datos de la empresa. El primer administrador se crea con ADMIN_PASSWORD
+    o desde el asistente de configuración del panel (/panel). */
 function inicializar(ctx) {
   const emp = ctx.s.empresa.asegurar();
   ctx.reloj.tz = emp.zona_horaria;
   const hayAdmin = ctx.db.prepare("SELECT COUNT(*) n FROM usuarios WHERE rol = 'admin'").get().n > 0;
-  if (!hayAdmin) {
-    const generado = !ctx.cfg.admin.password;
-    const password = ctx.cfg.admin.password || `nube-${pinAleatorio()}-${pinAleatorio()}`;
-    ctx.s.usuarios.crear({ codigo: ctx.cfg.admin.codigo, nombre: ctx.cfg.admin.nombre, rol: 'admin', secreto: password, debe_cambiar: generado });
-    ctx.adminInicial = { codigo: ctx.cfg.admin.codigo, password, generado };
+  if (!hayAdmin && ctx.cfg.admin.password) {
+    ctx.s.usuarios.crear({ codigo: ctx.cfg.admin.codigo, nombre: ctx.cfg.admin.nombre, rol: 'admin', secreto: ctx.cfg.admin.password });
+    ctx.adminInicial = { codigo: ctx.cfg.admin.codigo };
   }
 }

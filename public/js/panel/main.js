@@ -3,7 +3,7 @@
    ===================================================================== */
 import { api, onSesionVencida } from '../core/api.js';
 import { toast, redibujar, activarTooltips, icono, cerrarCapa } from '../core/ui.js';
-import { $, esc, cap, fLarga, LS, nombreBonito, iniciales } from '../core/util.js';
+import { $, esc, cap, fLarga, LS, nombreBonito, iniciales, primerNombre, waLink } from '../core/util.js';
 import hoy from './secciones/hoy.js';
 import dashboard from './secciones/dashboard.js';
 import horarios from './secciones/horarios.js';
@@ -64,7 +64,43 @@ function pintar() {
   s.alPintar?.(datos, P);
 }
 
+function pintarConfigurar() {
+  redibujar(raiz, `<div class="login-p"><form class="card stack aparece" id="fConfigurar" style="width:min(720px,100%)">
+    <img src="/assets/logo.webp" alt="Nube.chic">
+    <div class="center"><div class="eyebrow">Primer uso</div><h1>Configura tu sistema de asistencia</h1><p class="muted small">Esto se hace una sola vez. Después ingresarás con tu usuario y contraseña.</p></div>
+    <fieldset class="stack" style="border:0;padding:0;margin:0"><legend class="eyebrow" style="margin-bottom:8px">1 · Tu cuenta de administración</legend><div class="grid-form">
+      <label class="f">Nombre del negocio<input type="text" id="cfEmpresa" value="Nube.chic" required></label>
+      <label class="f">Tu nombre<input type="text" id="cfNombre" required autocomplete="name"></label>
+      <label class="f">Usuario<input type="text" id="cfUsuario" value="admin" required autocomplete="username"></label>
+      <label class="f">Contraseña (mínimo 8)<input type="password" id="cfClave" minlength="8" required autocomplete="new-password"></label>
+      <label class="f">Repite la contraseña<input type="password" id="cfClave2" minlength="8" required autocomplete="new-password"></label></div></fieldset>
+    <fieldset class="stack" style="border:0;padding:0;margin:0"><legend class="eyebrow" style="margin-bottom:8px">2 · Tienda y turno</legend><div class="grid-form">
+      <label class="f">Nombre de la tienda<input type="text" id="cfTienda" value="Galería Arcángel" required></label>
+      <label class="f">Dirección o referencia<input type="text" id="cfDir" placeholder="Ej.: Stand 12, Cajamarca"></label>
+      <label class="f">Coordenadas (lat, lng)<input type="text" id="cfCoords" value="-7.1547444, -78.5166566" required><small>Google Maps → clic derecho sobre la tienda</small></label>
+      <label class="f">Radio permitido (m)<input type="number" id="cfRadio" value="80" min="10" max="5000"></label>
+      <label class="f">Turno: inicio<input type="time" id="cfIni" value="16:00"></label><label class="f">Turno: fin<input type="time" id="cfFin" value="19:00"></label></div>
+      <p class="tiny muted">Se crea un turno diario con este horario. Luego puedes cambiarlo por día en Horarios → Plantilla semanal.</p></fieldset>
+    <fieldset class="stack" style="border:0;padding:0;margin:0"><legend class="eyebrow" style="margin-bottom:8px">3 · Tu equipo</legend>
+      <label class="f">Una persona por línea: nombre y celular<textarea id="cfEquipo" rows="8" placeholder="Analy Alcantara 998 814 382&#10;Flor Pari 946 745 424&#10;…"></textarea><small>A cada una se le crea su usuario (V01, V02…) y una clave de 4 números.</small></label></fieldset>
+    <button class="btn-p btn-big" type="submit">Crear y entrar al panel</button>
+    <div id="cfErr" class="small" style="color:var(--bad-ink)" role="alert"></div></form></div>`);
+}
+
+function pintarAccesos(equipo) {
+  const url = location.origin + '/';
+  const msg = (p) => `Hola ${primerNombre(p.nombre)} 👋 Ya está lista la app de asistencia de ${P.empresa?.nombre || 'Nube.chic'}.\n\n🔗 ${url}\n👤 Usuario: ${p.codigo}\n🔑 Clave: ${p.pin}\n\nÁbrela en tu celular, agrégala a tu pantalla de inicio y permite la ubicación al marcar tu entrada. Los domingos de 9 a 10 p. m. eliges tu horario de la semana. ¡Gracias!`;
+  redibujar(raiz, `<div class="login-p"><div class="card stack aparece" style="width:min(820px,100%)">
+    <img src="/assets/logo.webp" alt="Nube.chic">
+    <div class="center"><div class="eyebrow">Listo</div><h1>Accesos de tu equipo</h1><p class="muted small">Guarda o envía estas claves ahora: por seguridad no se vuelven a mostrar. Si alguien la pierde, genera una nueva en Equipo → Nuevo PIN.</p></div>
+    ${equipo.length ? `<div class="table-wrap"><table class="t"><thead><tr><th>Usuario</th><th>Nombre</th><th>Celular</th><th>Clave</th><th></th></tr></thead><tbody>
+      ${equipo.map((p) => `<tr><td class="num"><b>${esc(p.codigo)}</b></td><td>${esc(nombreBonito(p.nombre))}</td><td class="num">${p.telefono ? '+51 ' + esc(p.telefono) : '—'}</td><td class="num"><b>${esc(p.pin)}</b></td>
+        <td><a class="btn btn-wa btn-sm" target="_blank" rel="noopener" href="${waLink(p.telefono, msg(p))}">Enviar por WhatsApp</a></td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No cargaste personas; agrégalas en Equipo.</p>'}
+    <button type="button" class="btn-p btn-big" data-accion-global="entrar">Entrar al panel</button></div></div>`);
+}
+
 function pintarLogin() {
+  if (P.configurar) return pintarConfigurar();
   redibujar(raiz, `<div class="login-p"><form class="card stack" id="fLoginPanel">
     <img src="/assets/logo.webp" alt="">
     <div class="center"><div class="eyebrow">Panel de control</div><h2>Ingreso de administración</h2></div>
@@ -84,8 +120,19 @@ async function cargarYo() {
 
 /* ---------------- tiempo real (Server-Sent Events) ---------------- */
 let fuente = null, recarga = null;
+let sondeo = null;
 function conectarVivo() {
   fuente?.close();
+  clearInterval(sondeo);
+  if (P.tiempoReal === 'sondeo') {
+    // Hosting sin conexiones permanentes (Netlify): se consulta cada 20 s mientras la pestaña está visible.
+    P.vivo = true; pintarCabecera();
+    sondeo = setInterval(() => {
+      if (!P.yo || document.visibilityState !== 'visible' || document.querySelector('#capa') || document.querySelector('#contenido :is(input,select,textarea):focus')) return;
+      actualizarBadges(); P.refrescar({ silencioso: true });
+    }, 20000);
+    return;
+  }
   fuente = new EventSource('/api/panel/stream');
   fuente.onopen = () => { P.vivo = true; pintarCabecera(); };
   fuente.onerror = () => { P.vivo = false; pintarCabecera(); };
@@ -113,8 +160,9 @@ document.addEventListener('click', async (e) => {
   if (b.dataset.ir) return P.ir(b.dataset.ir);
   const g = b.dataset.accionGlobal;
   if (g === 'menu') return document.body.classList.toggle('menu-abierto');
-  if (g === 'salir') { await api.post('/panel/logout'); fuente?.close(); P.yo = null; return pintar(); }
+  if (g === 'salir') { await api.post('/panel/logout'); fuente?.close(); clearInterval(sondeo); P.yo = null; return pintar(); }
   if (g === 'miClave') return cambiarMiClave();
+  if (g === 'entrar') return iniciarSesion();
   if (b.dataset.accion) {
     try { await seccionActual().accion?.(b.dataset.accion, b, P, e); } catch (err) { toast(err.message, 'bad'); }
   }
@@ -127,6 +175,21 @@ for (const tipo of ['change', 'input']) {
   });
 }
 document.addEventListener('submit', async (e) => {
+  if (e.target.id === 'fConfigurar') {
+    e.preventDefault();
+    const v = (id) => $('#' + id).value.trim();
+    if ($('#cfClave').value !== $('#cfClave2').value) { $('#cfErr').textContent = 'Las contraseñas no coinciden.'; return; }
+    try {
+      const r = await api.post('/panel/configurar', {
+        empresa: v('cfEmpresa'), admin: { codigo: v('cfUsuario'), nombre: v('cfNombre'), clave: $('#cfClave').value },
+        tienda: { nombre: v('cfTienda'), direccion: v('cfDir'), coords: v('cfCoords'), radio_m: Number(v('cfRadio')) || 80 },
+        horario: { inicio: v('cfIni'), fin: v('cfFin') }, equipo: $('#cfEquipo').value,
+      });
+      P.configurar = false; P.empresa = { nombre: v('cfEmpresa') };
+      return pintarAccesos(r.equipo);
+    } catch (err) { $('#cfErr').textContent = err.message; }
+    return;
+  }
   if (e.target.id !== 'fLoginPanel') return;
   e.preventDefault();
   try {
@@ -157,6 +220,6 @@ setInterval(async () => { if (P.yo) { try { const r = await api.get('/estado'); 
 activarTooltips();
 
 (async () => {
-  try { const e = await api.get('/estado'); P.demo = e.demo; } catch {}
+  try { const e = await api.get('/estado'); P.demo = e.demo; P.configurar = e.configurar; P.tiempoReal = e.tiempoReal; } catch {}
   try { await iniciarSesion(); } catch { P.yo = null; pintar(); }
 })();

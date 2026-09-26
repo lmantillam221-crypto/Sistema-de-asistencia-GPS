@@ -59,7 +59,7 @@ cp .env.example .env          # edita ADMIN_PASSWORD
 npm start                     # http://localhost:3000  (app)  y  /panel
 ```
 
-Al primer arranque se crea el administrador con `ADMIN_CODIGO` / `ADMIN_PASSWORD`. Si no definiste contraseña, se genera una y se muestra en la consola (pide cambiarla al ingresar).
+Si defines `ADMIN_CODIGO` / `ADMIN_PASSWORD`, se crea ese administrador al arrancar. Si no, al abrir `/panel` por primera vez aparece el asistente **Configura tu sistema**.
 
 Luego, en el panel: **Tiendas** → agrega tu tienda (o importa tus datos) → **Horarios** → plantilla semanal → **Equipo** → agrega a las colaboradoras (el sistema genera el PIN y el mensaje de WhatsApp con el enlace y sus datos).
 
@@ -84,7 +84,22 @@ Habilita el **reloj simulado** (En vivo → barra de demostración), el **simula
 
 ---
 
-## Publicarlo en internet (obligatorio HTTPS)
+## Publicarlo en Netlify (recomendado)
+
+El proyecto trae `netlify.toml`: el sitio (app y panel) y la API como **función de Netlify**, con la base de datos guardada en **Netlify Blobs** (incluido en Netlify, sin cuentas externas). HTTPS viene activado, así que el GPS de los celulares funciona.
+
+1. Entra a [app.netlify.com](https://app.netlify.com) → **Add new site → Import an existing project → GitHub** y elige este repositorio (rama `claude/fervent-gauss-37h4sj` o la que uses).
+2. No cambies nada en la configuración de build (Netlify la lee de `netlify.toml`) y pulsa **Deploy**.
+3. Abre `https://tu-sitio.netlify.app/panel`: la primera vez aparece **Configura tu sistema**. Crea tu cuenta de administración, confirma la tienda y pega tu equipo (una persona por línea con su celular). El sistema genera usuario y clave para cada una, con botón para enviárselos por WhatsApp.
+4. Comparte con el equipo `https://tu-sitio.netlify.app/` para que instalen la app en su celular.
+
+Opcional: en **Site configuration → Domain management** puedes poner un dominio propio.
+
+> Netlify no permite subir funciones arrastrando una carpeta (Netlify Drop). Usa GitHub (pasos de arriba) o la CLI: `npx netlify-cli deploy --build --prod` dentro de la carpeta del proyecto.
+
+Diferencias con el servidor Node: el panel se actualiza cada 20 segundos (en lugar de al instante) y las multas automáticas se calculan cuando alguien abre la app o el panel. Todo lo demás es igual. La copia de seguridad se descarga desde **Configuración**.
+
+## Publicarlo en un servidor propio (obligatorio HTTPS)
 
 Los navegadores **solo entregan el GPS en páginas HTTPS**. Opciones:
 
@@ -142,7 +157,7 @@ test/                  pruebas de dominio, de API (flujo completo) y de navegado
 ## Pruebas
 
 ```bash
-npm test          # dominio + API completa (21 pruebas)
+npm test          # dominio, API completa y función de Netlify (25 pruebas)
 npm run e2e       # navegador real: marcar entrada/salida y recorrer el panel (requiere Chromium de Playwright)
 ```
 

@@ -1,4 +1,5 @@
 import { crearContexto } from '../src/services/index.js';
+import { abrirDB } from '../src/db/abrir.js';
 import { crearApp } from '../src/app.js';
 import { instante } from '../src/domain/tiempo.js';
 import { leerConfig } from '../src/config.js';
@@ -7,7 +8,7 @@ import { leerConfig } from '../src/config.js';
 export async function servidorPrueba({ demo = false, fecha = '2026-09-23', hora = '12:00' } = {}) {
   let ms = instante(fecha, hora, 'America/Lima');
   const cfg = { ...leerConfig({}), dbPath: ':memory:', demo, admin: { codigo: 'admin', password: 'admin-clave-123', nombre: 'Admin' } };
-  const ctx = crearContexto(cfg, { ahora: () => ms });
+  const ctx = crearContexto(cfg, { db: abrirDB(':memory:'), ahora: () => ms });
   const app = crearApp(ctx);
   const srv = await new Promise((ok) => { const s = app.listen(0, () => ok(s)); });
   const base = `http://127.0.0.1:${srv.address().port}`;

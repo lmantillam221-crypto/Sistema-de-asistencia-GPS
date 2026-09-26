@@ -1,5 +1,5 @@
 /* API de la app de las colaboradoras (celular). */
-import { Router } from 'express';
+import { Router } from '../lib/enrutador.js';
 import { z } from 'zod';
 import { validar, ErrorApp } from '../lib/errores.js';
 import { COOKIE_APP, autenticar, h } from '../middleware.js';

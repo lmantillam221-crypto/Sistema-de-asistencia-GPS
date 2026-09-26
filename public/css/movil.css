@@ -4,8 +4,8 @@
 body.movil { min-height: 100dvh; }
 .m-app { max-width: 520px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; }
 .m-top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px; background: rgba(255,246,249,.86); backdrop-filter: saturate(1.4) blur(14px); -webkit-backdrop-filter: saturate(1.4) blur(14px); border-bottom: 1px solid var(--line); }
-.m-top img { height: 34px; width: auto; }
-.m-top .reloj { font-weight: 900; font-variant-numeric: tabular-nums; font-size: .95rem; text-align: right; line-height: 1.1; }
+.m-top img { height: 38px; width: auto; }
+.m-top .reloj { font-family: var(--font-display); font-weight: 700; font-variant-numeric: tabular-nums; font-size: .95rem; text-align: right; line-height: 1.1; }
 .m-top .reloj small { display: block; font-weight: 700; color: var(--muted); font-size: .72rem; }
 .m-main { flex: 1; padding: 16px 16px calc(96px + var(--safe-b)); display: flex; flex-direction: column; gap: 14px; }
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; justify-content: center; background: rgba(255,255,255,.94); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-top: 1px solid var(--line); padding-bottom: var(--safe-b); }
@@ -17,13 +17,13 @@ body.movil { min-height: 100dvh; }
 .tabbar .badge { position: absolute; top: 4px; left: calc(50% + 6px); min-width: 18px; height: 18px; font-size: .66rem; }
 
 .login-m { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 18px; padding: 24px 20px calc(24px + var(--safe-b)); max-width: 420px; margin: 0 auto; width: 100%; }
-.login-m img.logo { height: 92px; width: auto; align-self: center; }
+.login-m img.logo { width: min(260px, 72%); height: auto; align-self: center; filter: drop-shadow(0 12px 22px rgba(242,114,154,.25)); }
 
 .saludo { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
 .saludo h1 { font-size: 1.35rem; }
 
 .turno-hero { background: linear-gradient(160deg, #ffffff 0%, #fff1f6 100%); }
-.turno-hero .horario { font-size: 1.9rem; font-weight: 900; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.turno-hero .horario { font-family: var(--font-display); font-size: 1.95rem; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
 .turno-hero .tienda { font-weight: 800; color: var(--berry-2); }
 .estado-pill { font-size: .85rem; font-weight: 900; padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
 
@@ -63,7 +63,7 @@ body.movil { min-height: 100dvh; }
 .mini-kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .mini-kpis div { background: var(--brand-softer); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
 .mini-kpis span { display: block; font-size: .76rem; color: var(--muted); font-weight: 800; }
-.mini-kpis b { font-size: 1.3rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+.mini-kpis b { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .sim { border: 2px dashed #f0cf7a; background: #fffaf0; }
 .opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
 .opt { text-align: left; padding: 10px 12px; border-radius: 12px; flex-direction: column; align-items: flex-start; }

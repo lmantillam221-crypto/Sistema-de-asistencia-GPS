@@ -1,26 +1,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DatabaseSync } from 'node:sqlite';
 
 const DIR_MIGRACIONES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'migrations');
 
-/** Abre la base SQLite, aplica PRAGMAs de producción y ejecuta migraciones pendientes. */
-export function abrirDB(archivo) {
-  if (archivo !== ':memory:') fs.mkdirSync(path.dirname(path.resolve(archivo)), { recursive: true });
-  const db = new DatabaseSync(archivo);
-  db.exec(`PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; PRAGMA synchronous = NORMAL;`);
-  migrar(db);
-  return db;
-}
+/** Migraciones en disco (servidor Node). En Netlify y la demo se pasan ya cargadas. */
+export const migracionesEnDisco = () => fs.readdirSync(DIR_MIGRACIONES).filter((f) => f.endsWith('.sql')).sort()
+  .map((nombre) => ({ nombre, sql: fs.readFileSync(path.join(DIR_MIGRACIONES, nombre), 'utf8') }));
 
-export function migrar(db) {
+export function migrar(db, lista = migracionesEnDisco()) {
   db.exec('CREATE TABLE IF NOT EXISTS _migraciones (nombre TEXT PRIMARY KEY, aplicada INTEGER NOT NULL)');
   const hechas = new Set(db.prepare('SELECT nombre FROM _migraciones').all().map((r) => r.nombre));
-  const archivos = fs.readdirSync(DIR_MIGRACIONES).filter((f) => f.endsWith('.sql')).sort();
-  for (const f of archivos) {
+  for (const { nombre: f, sql } of lista) {
     if (hechas.has(f)) continue;
-    const sql = fs.readFileSync(path.join(DIR_MIGRACIONES, f), 'utf8');
     transaccion(db, () => {
       db.exec(sql);
       db.prepare('INSERT INTO _migraciones (nombre, aplicada) VALUES (?, ?)').run(f, Date.now());

@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { Router } from 'express';
+import { Router } from '../lib/enrutador.js';
 import { z } from 'zod';
 import { validar, prohibido, invalido } from '../lib/errores.js';
 import { COOKIE_PANEL, autenticar, h, soloRoles } from '../middleware.js';
@@ -101,7 +101,8 @@ export function rutasPanel(ctx) {
   r.get('/semana', h((req, res) => {
     const aj = ctx.s.empresa.ajustes(), ahora = ctx.reloj.ahora();
     const v = infoVentana(aj.ventana, ahora);
-    const lunes = lunesDe(esFecha(req.query.lunes) ? req.query.lunes : v.abierta ? v.semana : ahora.fecha);
+    // El día de elección (domingo) se trabaja directamente sobre la semana siguiente.
+    const lunes = lunesDe(esFecha(req.query.lunes) ? req.query.lunes : v.abierta || v.esHoy ? v.semana : ahora.fecha);
     const tiendaId = Number(req.query.tienda) || null;
     const turnos = ctx.s.turnos.listar({ desde: lunes, hasta: sumarDias(lunes, 6), tiendaId });
     res.json({
@@ -228,9 +229,14 @@ export function rutasPanel(ctx) {
   }));
   r.get('/auditoria', admin, h((req, res) => res.json(ctx.s.auditoria.listar({ limite: Number(req.query.limite) || 300, antesDe: Number(req.query.antes) || null }))));
   r.get('/respaldo', admin, h((req, res) => {
+    ctx.s.auditoria.registrar(req.usuario, 'respaldo_descargado', null, null, null, req.ip);
+    if (typeof ctx.db.exportar === 'function') { // Netlify / sql.js: la base ya está en memoria
+      res.setHeader('Content-Type', 'application/vnd.sqlite3');
+      res.setHeader('Content-Disposition', `attachment; filename="asistencia-respaldo-${hoy()}.db"`);
+      return res.send(ctx.db.exportar());
+    }
     const tmp = path.join(os.tmpdir(), `respaldo-${Date.now()}.db`);
     ctx.db.exec(`VACUUM INTO '${tmp.replace(/'/g, "''")}'`);
-    ctx.s.auditoria.registrar(req.usuario, 'respaldo_descargado', null, null, null, req.ip);
     res.download(tmp, `asistencia-respaldo-${hoy()}.db`, () => fs.rm(tmp, { force: true }, () => {}));
   }));
   r.post('/importar-anterior', admin, h((req, res) => {

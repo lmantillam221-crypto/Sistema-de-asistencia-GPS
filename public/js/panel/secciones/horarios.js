@@ -15,11 +15,12 @@ export default {
   },
   render(d, P) {
     const v = d.ventana, hoy = P.ahora.fecha, esta = lunesDe(hoy), lunes = d.lunes;
-    const etiqueta = lunes === esta ? 'Semana actual' : lunes === sumarDias(esta, 7) ? 'Semana siguiente' : lunes < esta ? 'Semana pasada' : 'Semana futura';
+    const etiqueta = lunes === esta ? 'Semana actual' : lunes === sumarDias(esta, 7) ? (v.esHoy || v.abierta ? 'Semana siguiente · la que se elige hoy' : 'Semana siguiente') : lunes < esta ? 'Semana pasada' : 'Semana futura';
     const aviso = `📅 *${P.empresa.nombre}*: ${v.abierta ? 'ya está abierta' : `el ${fLarga(v.fecha)} de ${hora12(v.desde)} a ${hora12(v.hasta)} se abre`} la elección de horarios para la semana del ${fCorta(v.semana)}. Entren a la app con su usuario y clave y elijan su turno. ¡El primero que elige se queda con el turno! ${location.origin}`;
     const ventana = `<div class="card ventana ${v.abierta ? 'abierta' : ''}"><div class="reloj" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="${v.abierta ? '#fff' : '#c7336c'}" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
       <div style="flex:1;min-width:220px">${v.abierta ? `<h2>La elección de horarios está abierta</h2><div class="small muted">El equipo elige ahora sus turnos para la semana del ${fCorta(v.semana)}. Cierra a las ${hora12(v.hasta)} (quedan ${v.quedan} min).</div>`
-        : `<h2>Próxima elección: ${fLarga(v.fecha)}, de ${hora12(v.desde)} a ${hora12(v.hasta)}</h2><div class="small muted">Para la semana del ${fCorta(v.semana)} al ${fCorta(sumarDias(v.semana, 6))}. Tú puedes asignar o cambiar turnos en cualquier momento.</div>`}</div>
+        : v.esHoy ? `<h2>Hoy ${DIAS[v.dia]} se eligen los horarios de la semana siguiente</h2><div class="small muted">Prepara ahora los turnos del ${fCorta(v.semana)} al ${fCorta(sumarDias(v.semana, 6))} (abajo). A las ${hora12(v.desde)} el equipo podrá elegir con su usuario y clave hasta las ${hora12(v.hasta)}; fuera de ese horario solo tú puedes asignar.</div>`
+        : `<h2>Próxima elección: ${fLarga(v.fecha)}, de ${hora12(v.desde)} a ${hora12(v.hasta)}</h2><div class="small muted">Para la semana del ${fCorta(v.semana)} al ${fCorta(sumarDias(v.semana, 6))}. Solo en ese horario el equipo elige con su usuario y clave; tú puedes asignar o cambiar turnos en cualquier momento.</div>`}</div>
       <a class="btn btn-wa" target="_blank" rel="noopener" href="${waLink('', aviso)}">Avisar al grupo</a></div>`;
 
     const esp = new Map(d.especiales.map((e) => [e.fecha + '|' + (e.tienda_id ?? ''), e]));

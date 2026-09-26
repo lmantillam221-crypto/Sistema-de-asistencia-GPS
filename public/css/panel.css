@@ -2,23 +2,23 @@
    Panel de control (escritorio y tablet, adaptable a celular)
    ===================================================================== */
 .p-app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100dvh; }
-aside.lateral { position: sticky; top: 0; height: 100dvh; overflow-y: auto; background: linear-gradient(175deg, #5a2849 0%, #46203a 55%, #3a1a30 100%); color: var(--berry-ink); padding: 18px 14px; display: flex; flex-direction: column; gap: 18px; box-shadow: 8px 0 30px -24px rgba(70,32,58,.9); z-index: 40; }
+aside.lateral { position: sticky; top: 0; height: 100dvh; overflow-y: auto; background: linear-gradient(175deg, #56274a 0%, #3f1d35 55%, #321628 100%); color: var(--berry-ink); padding: 18px 14px; display: flex; flex-direction: column; gap: 18px; box-shadow: 8px 0 30px -24px rgba(70,32,58,.9); z-index: 40; }
 aside.lateral .marca { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px 14px; border-radius: 16px; background: rgba(255,255,255,.96); }
-aside.lateral .marca img { height: 64px; width: auto; }
+aside.lateral .marca img { width: 100%; max-width: 170px; height: auto; }
 aside.lateral .marca span { font-size: .72rem; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; color: var(--berry-2); }
 aside.lateral nav { display: flex; flex-direction: column; gap: 3px; }
 aside.lateral nav .grupo { font-size: .68rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: #d9a6bf; margin: 12px 10px 4px; }
 aside.lateral nav button { justify-content: flex-start; border: 0; background: transparent; color: #f6d5e2; font-weight: 800; padding: 10px 12px; border-radius: 12px; gap: 10px; width: 100%; }
 aside.lateral nav button svg { width: 19px; height: 19px; flex: none; opacity: .9; }
 aside.lateral nav button:hover { background: rgba(255,255,255,.08); }
-aside.lateral nav button[aria-current="page"] { background: linear-gradient(135deg,#ffb3c8,#ff7aa2); color: #3b1e2f; box-shadow: 0 0 18px rgba(255,145,174,.45); }
+aside.lateral nav button[aria-current="page"] { background: var(--grad); color: #fff; text-shadow: 0 1px 0 rgba(150,30,70,.3); box-shadow: 0 0 18px rgba(255,145,174,.45); }
 aside.lateral nav button .badge { margin-left: auto; background: #fff; color: var(--brand-strong); }
 aside.lateral nav button[aria-current="page"] .badge { background: var(--berry); color: #fff; }
 aside.lateral .pie { margin-top: auto; font-size: .8rem; color: #e8bfd0; display: flex; flex-direction: column; gap: 8px; }
 aside.lateral .pie button { background: rgba(255,255,255,.08); border-color: rgba(255,183,205,.3); color: #ffe3ec; }
 .p-main { min-width: 0; display: flex; flex-direction: column; }
 .p-top { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; background: rgba(255,246,249,.88); backdrop-filter: saturate(1.4) blur(14px); -webkit-backdrop-filter: saturate(1.4) blur(14px); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-.p-top h1 { font-size: 1.25rem; }
+.p-top h1 { font-size: 1.35rem; }
 .p-top .der { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .vivo { display: inline-flex; align-items: center; gap: 7px; font-size: .8rem; font-weight: 800; color: var(--muted); padding: 5px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); }
 .vivo i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
@@ -56,12 +56,12 @@ aside.lateral .pie button { background: rgba(255,255,255,.08); border-color: rgb
 
 /* turno en vivo */
 .hero { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 14px 18px; }
-.hero .quien { font-size: 1.45rem; font-weight: 900; letter-spacing: -.01em; line-height: 1.15; }
+.hero .quien { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; letter-spacing: -.01em; line-height: 1.15; }
 .hero .estado { font-size: .9rem; font-weight: 900; padding: 7px 14px; border-radius: 999px; align-self: start; white-space: nowrap; }
 .hechos { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
 .hecho { background: var(--brand-softer); border: 1px solid var(--line); border-radius: 13px; padding: 10px 12px; min-width: 0; }
 .hecho span { display: block; font-size: .76rem; color: var(--muted); font-weight: 800; }
-.hecho b { font-size: 1.15rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+.hecho b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .turnos-dia { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
 .alerta { display: flex; gap: 10px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
 .alerta:last-child { border-bottom: 0; }
@@ -95,7 +95,7 @@ textarea.copiar { width: 100%; min-height: 150px; font-size: .85rem; }
 /* multas */
 .deudas { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
 .deuda { border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: var(--sheen); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px; }
-.deuda .monto { font-size: 1.5rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+.deuda .monto { font-family: var(--font-display); font-size: 1.55rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .deuda.cero .monto { color: var(--ok-ink); }
 
 details.bloque { background: var(--sheen); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
@@ -111,7 +111,7 @@ details.bloque > .cuerpo { padding: 0 18px 18px; display: flex; flex-direction: 
 .modal.ancho { width: min(820px, 100%); }
 .login-p { min-height: 100dvh; display: grid; place-items: center; padding: 16px; }
 .login-p .card { width: min(400px, 100%); }
-.login-p img { height: 84px; width: auto; align-self: center; }
+.login-p img { width: min(240px, 70%); height: auto; align-self: center; }
 .avatar { width: 34px; height: 34px; border-radius: 50%; display: inline-grid; place-items: center; font-weight: 900; font-size: .8rem; color: #fff; background: var(--grad); flex: none; }
 .persona { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .persona b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
