@@ -1,0 +1,36 @@
+{
+  "name": "nube-chic-asistencia",
+  "version": "2.0.0",
+  "description": "Control de asistencia con GPS, turnos, multas y cierre de caja para tiendas de moda y accesorios.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/server.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch src/server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test --test-concurrency=1 test/*.test.js",
+    "check": "node --check src/server.js && npm test",
+    "crear-admin": "node --disable-warning=ExperimentalWarning scripts/crear-admin.js",
+    "importar": "node --disable-warning=ExperimentalWarning scripts/importar.js",
+    "demo": "node --disable-warning=ExperimentalWarning scripts/demo.js",
+    "respaldo": "node --disable-warning=ExperimentalWarning scripts/respaldo.js",
+    "e2e": "node --disable-warning=ExperimentalWarning test/e2e.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lmantillam221-crypto/Sistema-de-asistencia-GPS.git"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "compression": "^1.8.2",
+    "express": "^5.2.1",
+    "helmet": "^8.3.0",
+    "leaflet": "^1.9.4",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  }
+}

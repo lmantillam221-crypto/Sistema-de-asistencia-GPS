@@ -1,0 +1,20 @@
+{
+  "name": "Nube.chic · Asistencia",
+  "short_name": "Nube.chic",
+  "description": "Marca tu asistencia con GPS, elige tus horarios y registra el cuadre de tu turno.",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff6f9",
+  "theme_color": "#ff91ae",
+  "icons": [
+    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Panel de control", "url": "/panel", "icons": [{ "src": "/assets/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

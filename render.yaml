@@ -1,0 +1,22 @@
+# Despliegue en Render.com (plan con disco persistente para la base de datos)
+services:
+  - type: web
+    name: nube-chic-asistencia
+    runtime: docker
+    plan: starter
+    healthCheckPath: /salud
+    disk:
+      name: datos
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DB_PATH
+        value: /data/asistencia.db
+      - key: ADMIN_CODIGO
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
