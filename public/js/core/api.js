@@ -1,6 +1,7 @@
 /* Cliente HTTP de la API: JSON, errores legibles y manejo de sesión vencida. */
-let alVencer = () => {};
-export const onSesionVencida = (fn) => { alVencer = fn; };
+const alVencer = new Set();
+/** Avisa cuando la sesión vence. El callback recibe la ruta (/app/… o /panel/…). */
+export const onSesionVencida = (fn) => { alVencer.add(fn); };
 
 export class ErrorApi extends Error {
   constructor(status, mensaje, datos = {}) { super(mensaje); this.status = status; Object.assign(this, datos); }
@@ -20,7 +21,7 @@ async function pedir(metodo, ruta, cuerpo) {
   const tipo = r.headers.get('content-type') || '';
   const datos = tipo.includes('json') ? await r.json().catch(() => ({})) : null;
   if (!r.ok) {
-    if (r.status === 401 && datos?.codigo === 'SESION') alVencer();
+    if (r.status === 401 && datos?.codigo === 'SESION') alVencer.forEach((fn) => fn(ruta));
     throw new ErrorApi(r.status, datos?.error || `Error ${r.status}`, { codigo: datos?.codigo, detalles: datos?.detalles });
   }
   return datos;

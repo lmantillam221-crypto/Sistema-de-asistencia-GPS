@@ -449,7 +449,7 @@ document.addEventListener('submit', async (e) => {
 });
 
 /* ---------------- ciclo de vida ---------------- */
-onSesionVencida(() => { est.datos = null; gps.detener(); render(); });
+onSesionVencida((ruta) => { if (!ruta.startsWith('/app/')) return; est.datos = null; gps.detener(); render(); });
 gps.oir(() => {
   if (!est.datos) return;
   for (const el of raiz.querySelectorAll('[data-dist]')) {

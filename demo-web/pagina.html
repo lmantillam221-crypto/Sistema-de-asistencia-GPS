@@ -1,0 +1,77 @@
+<title>Nube.chic Asistencia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
+<style>/*LEAFLET_CSS*/</style>
+<style>/*APP_CSS*/</style>
+<style>/*MOVIL_CSS*/</style>
+<style>/*PANEL_CSS*/</style>
+<style>
+  :root { padding: 0 !important; }
+  html, body { background: #fff6f9; }
+  .demo-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 16px; background: #46203a; color: #ffe9f0; font-family: var(--font); font-size: .86rem; }
+  .demo-top b { color: #fff; font-weight: 900; }
+  .demo-top .cred { display: flex; flex-wrap: wrap; gap: 6px 14px; color: #f3c6d6; }
+  .demo-top code { font-family: inherit; font-weight: 900; color: #fff; background: rgba(255,255,255,.12); padding: 1px 6px; border-radius: 6px; }
+  .demo-top .acc { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+  .demo-top button { background: rgba(255,255,255,.1); color: #ffe3ec; border-color: rgba(255,183,205,.35); padding: 6px 12px; font-size: .82rem; }
+  .demo-top button[aria-pressed="true"] { background: linear-gradient(135deg,#ffb3c8,#ff7aa2); color: #3b1e2f; border-color: transparent; }
+  .demo-top .conf { background: #ffd36b; color: #3b1e2f; border-color: transparent; }
+  .demo-cuerpo { display: grid; grid-template-columns: 420px minmax(0, 1fr); align-items: start; }
+  .col-tel { position: sticky; top: 0; height: 100dvh; padding: 14px; background: linear-gradient(170deg, #fde4ee, #f6d3e2); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+  .col-tel .rot { font-size: .72rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--berry-2); text-align: center; }
+  .telefono { flex: 1; min-height: 0; border-radius: 34px; border: 9px solid #2b1624; background: var(--bg); overflow: hidden; transform: translateZ(0); box-shadow: 0 30px 60px -30px rgba(70,32,58,.7); position: relative; }
+  .telefono #app { height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+  .telefono .m-app { min-height: 100%; }
+  .telefono .tabbar { position: absolute; }
+  .telefono .login-m { min-height: 100%; }
+  .col-panel { min-width: 0; }
+  .col-panel .p-app { min-height: 100dvh; }
+  @media (max-width: 1100px) {
+    .demo-cuerpo { grid-template-columns: 1fr; }
+    .col-tel { position: static; height: auto; padding: 0; background: none; border: 0; }
+    .col-tel .rot { display: none; }
+    .telefono { border: 0; border-radius: 0; box-shadow: none; transform: none; overflow: visible; }
+    .telefono #app { height: auto; overflow: visible; }
+    .telefono .tabbar { position: fixed; }
+    body[data-vista="app"] .col-panel, body[data-vista="panel"] .col-tel { display: none; }
+  }
+  @media (min-width: 1101px) { .solo-movil { display: none; } }
+  .arranque { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: #fff6f9; font-family: var(--font); color: var(--muted); text-align: center; }
+</style>
+
+<div class="demo-top">
+  <span><b>Demo de prueba</b> · el sistema completo funciona en este navegador con datos de ejemplo</span>
+  <span class="cred">App: <span><code>V01</code> / <code>1111</code> … <code>V08</code> / <code>8888</code></span> Panel: <span><code>admin</code> / <code>admin12345</code></span></span>
+  <span class="acc">
+    <button type="button" class="solo-movil" data-vista-demo="app">App del equipo</button>
+    <button type="button" class="solo-movil" data-vista-demo="panel">Panel de control</button>
+    <button type="button" id="demoReiniciar">Reiniciar demo</button>
+  </span>
+</div>
+<div class="demo-cuerpo">
+  <section class="col-tel" aria-label="Celular de la colaboradora"><div class="rot">Celular de la colaboradora</div><div class="telefono"><div id="app"></div></div></section>
+  <section class="col-panel" aria-label="Panel de control"><div id="panel"></div></section>
+</div>
+<div class="arranque" id="arranque"><div><div class="spinner" style="width:34px;height:34px"></div><p style="margin-top:12px;font-weight:800">Preparando la demo…</p></div></div>
+
+<script>/*LEAFLET_JS*/</script>
+<script>
+  (function () {
+    function vista(v) { document.body.dataset.vista = v; document.querySelectorAll('[data-vista-demo]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.vistaDemo === v)); }); }
+    vista(location.hash === '#panel' ? 'panel' : 'app');
+    window.addEventListener('hashchange', function () { vista(location.hash === '#panel' ? 'panel' : 'app'); });
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-vista-demo]'); if (b) { vista(b.dataset.vistaDemo); window.scrollTo(0, 0); return; }
+      var a = e.target.closest('a[href^="#panel"], a[href^="#app"]'); if (a) { e.preventDefault(); vista(a.getAttribute('href').slice(1)); window.scrollTo(0, 0); return; }
+      var d = e.target.closest('a[href^="/api/"]');
+      if (d) { e.preventDefault(); e.stopPropagation(); var t = document.getElementById('toast'); if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); } t.className = 'toast'; t.hidden = false; t.textContent = 'La descarga a Excel funciona en el sistema instalado; esta demo no puede descargar archivos.'; setTimeout(function () { t.hidden = true; }, 4000); }
+    }, true);
+    var r = document.getElementById('demoReiniciar'), paso = 0;
+    r.addEventListener('click', function () {
+      if (!paso) { paso = 1; r.textContent = '¿Borrar todo y empezar de nuevo?'; r.className = 'conf'; setTimeout(function () { paso = 0; r.textContent = 'Reiniciar demo'; r.className = ''; }, 4000); return; }
+      window.__ncDemo && window.__ncDemo.reiniciar(); location.reload();
+    });
+  })();
+</script>
+<script type="module">/*BUNDLE*/</script>

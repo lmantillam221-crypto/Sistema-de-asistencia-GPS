@@ -67,7 +67,7 @@ try {
   const pc = await (await browser.newContext({ viewport: { width: 1366, height: 860 } })).newPage(); vigilar(pc);
   await pc.goto(B + '/panel');
   await pc.fill('#pUsuario', 'admin'); await pc.fill('#pClave', 'admin12345');
-  await pc.click('#fLogin button[type=submit]');
+  await pc.click('#fLoginPanel button[type=submit]');
   await pc.waitForSelector('aside.lateral');
   for (const s of ['dashboard', 'horarios', 'multas', 'equipo', 'reportes', 'tiendas', 'ajustes', 'auditoria', 'hoy']) {
     await pc.click(`[data-ir=${s}]`);

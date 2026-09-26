@@ -16,7 +16,8 @@
     "importar": "node --disable-warning=ExperimentalWarning scripts/importar.js",
     "demo": "node --disable-warning=ExperimentalWarning scripts/demo.js",
     "respaldo": "node --disable-warning=ExperimentalWarning scripts/respaldo.js",
-    "e2e": "node --disable-warning=ExperimentalWarning test/e2e.mjs"
+    "e2e": "node --disable-warning=ExperimentalWarning test/e2e.mjs",
+    "build:demo-web": "node scripts/build-demo-web.mjs"
   },
   "repository": {
     "type": "git",
@@ -31,6 +32,8 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "playwright": "^1.56.1"
+    "esbuild": "^0.28.2",
+    "playwright": "^1.56.1",
+    "sql.js": "^1.14.2"
   }
 }

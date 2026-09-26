@@ -65,7 +65,7 @@ function pintar() {
 }
 
 function pintarLogin() {
-  redibujar(raiz, `<div class="login-p"><form class="card stack" id="fLogin">
+  redibujar(raiz, `<div class="login-p"><form class="card stack" id="fLoginPanel">
     <img src="/assets/logo.webp" alt="">
     <div class="center"><div class="eyebrow">Panel de control</div><h2>Ingreso de administración</h2></div>
     <label class="f">Usuario<input type="text" id="pUsuario" autocomplete="username" required></label>
@@ -127,7 +127,7 @@ for (const tipo of ['change', 'input']) {
   });
 }
 document.addEventListener('submit', async (e) => {
-  if (e.target.id !== 'fLogin') return;
+  if (e.target.id !== 'fLoginPanel') return;
   e.preventDefault();
   try {
     await api.post('/panel/login', { codigo: $('#pUsuario').value.trim(), clave: $('#pClave').value });
@@ -152,7 +152,7 @@ async function iniciarSesion() {
   actualizarBadges();
   await P.refrescar();
 }
-onSesionVencida(() => { P.yo = null; fuente?.close(); pintar(); });
+onSesionVencida((ruta) => { if (!ruta.startsWith('/panel/')) return; P.yo = null; fuente?.close(); pintar(); });
 setInterval(async () => { if (P.yo) { try { const r = await api.get('/estado'); P.ahora = r.ahora; P.relojSimulado = r.relojSimulado; const el = document.querySelector('.reloj-p'); if (el) el.innerHTML = `${cap(fLarga(r.ahora.fecha))} · ${r.ahora.hora}${r.relojSimulado ? ' <span class="chip warn">simulado</span>' : ''}`; } catch {} } }, 30000);
 activarTooltips();
 
