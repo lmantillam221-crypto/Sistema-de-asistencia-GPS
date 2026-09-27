@@ -90,8 +90,8 @@ export default {
     for (const r of filas) porDia.set(r.fecha, (porDia.get(r.fecha) || 0) + total(r));
     const dias = [...porDia.entries()].sort();
     const c5 = P.ajustes.registrarVentas && vendido ? `<div class="card ancho"><div class="card-h"><div><h2>Ventas por día</h2><span class="small muted">Suma de los cuadres de caja de cada día</span></div>
-      <div class="leyenda"><span><i style="background:#ff6f98"></i>Lunes a viernes</span><span><i style="background:#6a2f55"></i>Fin de semana</span></div></div>
-      ${barras(dias.map(([f, v]) => ({ etiqueta: fCorta(f).slice(4), valor: Math.round(v), color: [0, 6].includes(diaDe(f)) ? '#6a2f55' : '#ff6f98', tip: `${DIAS_C[diaDe(f)]} ${fCorta(f).slice(4)}\n${soles(v)}` })), { unidad: 'S/', aria: 'Ventas por día' })}</div>` : '';
+      <div class="leyenda"><span><i style="background:var(--chart-bar)"></i>Lunes a viernes</span><span><i style="background:var(--chart-bar-2)"></i>Fin de semana</span></div></div>
+      ${barras(dias.map(([f, v]) => ({ etiqueta: fCorta(f).slice(4), valor: Math.round(v), color: [0, 6].includes(diaDe(f)) ? 'var(--chart-bar-2)' : 'var(--chart-bar)', tip: `${DIAS_C[diaDe(f)]} ${fCorta(f).slice(4)}\n${soles(v)}` })), { unidad: 'S/', aria: 'Ventas por día' })}</div>` : '';
     const c6 = `<div class="card"><h2>Reportes GPS dentro de la tienda</h2><span class="small muted" style="margin-top:-8px">% de reportes automáticos dentro de la geocerca</span>
       ${hbarras(ps.filter((x) => x.rep).sort((a, b) => b.dentro / b.rep - a.dentro / a.rep).map((x) => ({ nombre: x.nombre, pct: (x.dentro / x.rep) * 100, valor: Math.round((x.dentro / x.rep) * 100) + '%', clase: 'berry', tip: `${x.nombre}\n${x.dentro} de ${x.rep} reportes en tienda` })), 'Sin reportes GPS.')}</div>`;
     const prom = (a) => (a.length ? Math.round(a.reduce((s, x) => s + x, 0) / a.length) : null);

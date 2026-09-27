@@ -39,7 +39,7 @@ export const listo = (async () => {
   try { db = new DatabaseSync(guardada ? deB64(guardada) : null); } catch { db = new DatabaseSync(null); }
   db.exec('PRAGMA foreign_keys = ON');
   migrar(db);
-  const cfg = { ...leerConfig({}), dbPath: ':memory:', demo: true, produccion: false, admin: { codigo: 'admin', password: 'admin12345', nombre: 'Administración' } };
+  const cfg = { ...leerConfig(process.env), dbPath: ':memory:', demo: true, produccion: false, admin: { codigo: 'admin', password: 'admin12345', nombre: 'Administración' } };
   ctx = crearContexto(cfg, { db });
 
   // Reloj de demostración que sobrevive a recargas

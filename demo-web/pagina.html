@@ -1,15 +1,15 @@
-<title>Nube.chic Asistencia</title>
+<title>{{MARCA_APP}}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap">
 <style>/*LEAFLET_CSS*/</style>
 <style>/*APP_CSS*/</style>
 <style>/*MOVIL_CSS*/</style>
 <style>/*PANEL_CSS*/</style>
+<style>/*MARCA_CSS*/</style>
 <style>
   :root { padding: 0 !important; }
-  html, body { background: #fff6f9; }
-  .demo-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 16px; background: #46203a; color: #ffe9f0; font-family: var(--font); font-size: .86rem; }
+  html, body { background: var(--bg); }
+  .demo-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 16px; background: var(--berry); color: var(--berry-ink); font-family: var(--font); font-size: .86rem; }
   .demo-top b { color: #fff; font-weight: 900; }
   .demo-top .cred { display: flex; flex-wrap: wrap; gap: 6px 14px; color: #f3c6d6; }
   .demo-top code { font-family: inherit; font-weight: 900; color: #fff; background: rgba(255,255,255,.12); padding: 1px 6px; border-radius: 6px; }
@@ -18,9 +18,9 @@
   .demo-top button[aria-pressed="true"] { background: linear-gradient(135deg,#ffb3c8,#ff7aa2); color: #3b1e2f; border-color: transparent; }
   .demo-top .conf { background: #ffd36b; color: #3b1e2f; border-color: transparent; }
   .demo-cuerpo { display: grid; grid-template-columns: 420px minmax(0, 1fr); align-items: start; }
-  .col-tel { position: sticky; top: 0; height: 100dvh; padding: 14px; background: linear-gradient(170deg, #fde4ee, #f6d3e2); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+  .col-tel { position: sticky; top: 0; height: 100dvh; padding: 14px; background: linear-gradient(170deg, var(--brand-soft), var(--surface-2)); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
   .col-tel .rot { font-size: .72rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--berry-2); text-align: center; }
-  .telefono { flex: 1; min-height: 0; border-radius: 34px; border: 9px solid #2b1624; background: var(--bg); overflow: hidden; transform: translateZ(0); box-shadow: 0 30px 60px -30px rgba(70,32,58,.7); position: relative; }
+  .telefono { flex: 1; min-height: 0; border-radius: 34px; border: 9px solid var(--berry); background: var(--bg); overflow: hidden; transform: translateZ(0); box-shadow: 0 30px 60px -30px rgba(70,32,58,.7); position: relative; }
   .telefono #app { height: 100%; overflow-y: auto; overscroll-behavior: contain; }
   .telefono .m-app { min-height: 100%; }
   .telefono .tabbar { position: absolute; }
@@ -37,7 +37,7 @@
     body[data-vista="app"] .col-panel, body[data-vista="panel"] .col-tel { display: none; }
   }
   @media (min-width: 1101px) { .solo-movil { display: none; } }
-  .arranque { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: #fff6f9; font-family: var(--font); color: var(--muted); text-align: center; }
+  .arranque { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: var(--bg); font-family: var(--font); color: var(--muted); text-align: center; }
 </style>
 
 <div class="demo-top">

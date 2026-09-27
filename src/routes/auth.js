@@ -13,13 +13,13 @@ export function rutasAuth(ctx) {
 
   r.get('/estado', (req, res) => {
     const emp = ctx.s.empresa.obtener();
-    res.json({ empresa: emp.nombre, rubro: emp.rubro, demo: ctx.cfg.demo, relojSimulado: ctx.reloj.simulado, ahora: ctx.reloj.ahora(), zona: emp.zona_horaria, version: '2.1.0', configurar: !hayAdmin(ctx), tiempoReal: ctx.cfg.tiempoReal || 'sse' });
+    res.json({ empresa: emp.nombre, rubro: emp.rubro, demo: ctx.cfg.demo, relojSimulado: ctx.reloj.simulado, ahora: ctx.reloj.ahora(), zona: emp.zona_horaria, version: '2.2.0', configurar: !hayAdmin(ctx), tiempoReal: ctx.cfg.tiempoReal || 'sse', marca: ctx.cfg.marca });
   });
 
   /* Asistente de primer uso: solo funciona mientras no exista ninguna cuenta de administración. */
   r.post('/panel/configurar', lim, h((req, res) => {
     const d = validar(z.object({
-      empresa: z.string().max(80).optional(),
+      empresa: z.string().max(80).optional(), rubro: z.string().max(80).optional(),
       admin: z.object({ codigo: z.string().trim().min(2).max(20), nombre: z.string().trim().min(1).max(80), clave: z.string().min(8).max(200) }),
       tienda: z.object({ nombre: z.string().trim().min(1).max(80), direccion: z.string().max(160).optional(), coords: z.string().max(60), radio_m: z.number().int().min(10).max(5000).optional() }),
       horario: z.object({ inicio: z.string().regex(/^\d{2}:\d{2}$/), fin: z.string().regex(/^\d{2}:\d{2}$/) }).optional(),

@@ -31,7 +31,7 @@ export function crearContexto(cfg, { db, ahora } = {}) {
 /** Primer arranque: datos de la empresa. El primer administrador se crea con ADMIN_PASSWORD
     o desde el asistente de configuración del panel (/panel). */
 function inicializar(ctx) {
-  const emp = ctx.s.empresa.asegurar();
+  const emp = ctx.s.empresa.asegurar(ctx.cfg.marca ? { nombre: ctx.cfg.marca.nombre, rubro: ctx.cfg.marca.rubro } : {});
   ctx.reloj.tz = emp.zona_horaria;
   const hayAdmin = ctx.db.prepare("SELECT COUNT(*) n FROM usuarios WHERE rol = 'admin'").get().n > 0;
   if (!hayAdmin && ctx.cfg.admin.password) {

@@ -84,6 +84,20 @@ Habilita el **reloj simulado** (En vivo → barra de demostración), el **simula
 
 ---
 
+## Marcas (varias empresas con el mismo sistema)
+
+El mismo código sirve a varias empresas. Cada marca vive en `marcas/<id>/`:
+
+| Marca | Carpeta | Paleta | Tipografía |
+|---|---|---|---|
+| **Nube.chic** (predeterminada) | `marcas/nube-chic` | rosa #FC90AE · ciruela #3F1D35 | Outfit + Figtree |
+| **Mundo Nuvana** | `marcas/mundo-nuvana` | azul petróleo #3387A2 · celeste #C0DEF0 · tinta #14323F | Cormorant Garamond + Manrope |
+
+- `marca.json`: nombre, rubro, colores del navegador y valores iniciales del asistente (tienda y turno).
+- `publico/`: archivos que reemplazan a los de `public/` (logo, íconos y `css/marca.css` con los tokens de color y fuentes).
+- Se elige con la variable **`MARCA`** (`nube-chic` o `mundo-nuvana`). Cada empresa es un sitio distinto con **sus propios datos**.
+- Para agregar otra empresa: copia `marcas/mundo-nuvana`, cambia logo, `marca.json` y tokens de `css/marca.css`, y regístrala en `src/marcas.js`.
+
 ## Publicarlo en Netlify (recomendado)
 
 El proyecto trae `netlify.toml`: el sitio (app y panel) y la API como **función de Netlify**, con la base de datos guardada en **Netlify Blobs** (incluido en Netlify, sin cuentas externas). HTTPS viene activado, así que el GPS de los celulares funciona.
@@ -92,6 +106,8 @@ El proyecto trae `netlify.toml`: el sitio (app y panel) y la API como **función
 2. No cambies nada en la configuración de build (Netlify la lee de `netlify.toml`) y pulsa **Deploy**.
 3. Abre `https://tu-sitio.netlify.app/panel`: la primera vez aparece **Configura tu sistema**. Crea tu cuenta de administración, confirma la tienda y pega tu equipo (una persona por línea con su celular). El sistema genera usuario y clave para cada una, con botón para enviárselos por WhatsApp.
 4. Comparte con el equipo `https://tu-sitio.netlify.app/` para que instalen la app en su celular.
+
+Para **Mundo Nuvana** crea un segundo sitio desde el mismo repositorio y, antes del primer deploy, agrega en **Site configuration → Environment variables** la variable `MARCA` = `mundo-nuvana`. Cada sitio guarda sus datos por separado.
 
 Opcional: en **Site configuration → Domain management** puedes poner un dominio propio.
 

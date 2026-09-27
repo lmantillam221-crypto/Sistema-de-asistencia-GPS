@@ -21,14 +21,14 @@ export function leerEquipo(texto) {
   return out;
 }
 
-export function configurarNegocio(ctx, { empresa, admin, tienda, horario, equipo }) {
+export function configurarNegocio(ctx, { empresa, rubro, admin, tienda, horario, equipo }) {
   if (hayAdmin(ctx)) throw conflicto('El sistema ya fue configurado. Ingresa con tu usuario.');
   const c = leerCoords(tienda?.coords);
   if (!c) throw invalido('Escribe las coordenadas de la tienda (ej.: -7.1547, -78.5166).');
   const personas = leerEquipo(equipo);
   const creadas = [];
   transaccion(ctx.db, () => {
-    ctx.s.empresa.actualizar({ nombre: empresa?.trim() || 'Nube.chic', rubro: 'Moda y accesorios' });
+    ctx.s.empresa.actualizar({ nombre: empresa?.trim() || ctx.cfg.marca?.nombre || 'Mi negocio', rubro: rubro?.trim() || ctx.cfg.marca?.rubro || 'Moda y accesorios' });
     const u = ctx.s.usuarios.crear({ codigo: admin.codigo, nombre: admin.nombre, rol: 'admin', secreto: admin.clave });
     const t = ctx.s.tiendas.crear({ codigo: 'L1', nombre: tienda.nombre, direccion: tienda.direccion || '', lat: c.lat, lng: c.lng, radio_m: Number(tienda.radio_m) || 80 });
     const h = horario || { inicio: '16:00', fin: '19:00' };

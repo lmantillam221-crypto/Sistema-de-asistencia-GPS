@@ -65,21 +65,23 @@ function pintar() {
 }
 
 function pintarConfigurar() {
+  const m = P.marca || {}, t = m.tienda || {}, tu = m.turno || { inicio: '16:00', fin: '19:00' };
   redibujar(raiz, `<div class="login-p"><form class="card stack aparece" id="fConfigurar" style="width:min(720px,100%)">
-    <img src="/assets/logo.webp" alt="Nube.chic">
+    <img src="/assets/logo.webp" alt="${esc(m.nombre || '')}">
     <div class="center"><div class="eyebrow">Primer uso</div><h1>Configura tu sistema de asistencia</h1><p class="muted small">Esto se hace una sola vez. Después ingresarás con tu usuario y contraseña.</p></div>
     <fieldset class="stack" style="border:0;padding:0;margin:0"><legend class="eyebrow" style="margin-bottom:8px">1 · Tu cuenta de administración</legend><div class="grid-form">
-      <label class="f">Nombre del negocio<input type="text" id="cfEmpresa" value="Nube.chic" required></label>
+      <label class="f">Nombre del negocio<input type="text" id="cfEmpresa" value="${esc(m.nombre || '')}" required></label>
+      <label class="f">Rubro<input type="text" id="cfRubro" value="${esc(m.rubro || 'Moda y accesorios')}"></label>
       <label class="f">Tu nombre<input type="text" id="cfNombre" required autocomplete="name"></label>
       <label class="f">Usuario<input type="text" id="cfUsuario" value="admin" required autocomplete="username"></label>
       <label class="f">Contraseña (mínimo 8)<input type="password" id="cfClave" minlength="8" required autocomplete="new-password"></label>
       <label class="f">Repite la contraseña<input type="password" id="cfClave2" minlength="8" required autocomplete="new-password"></label></div></fieldset>
     <fieldset class="stack" style="border:0;padding:0;margin:0"><legend class="eyebrow" style="margin-bottom:8px">2 · Tienda y turno</legend><div class="grid-form">
-      <label class="f">Nombre de la tienda<input type="text" id="cfTienda" value="Galería Arcángel" required></label>
-      <label class="f">Dirección o referencia<input type="text" id="cfDir" placeholder="Ej.: Stand 12, Cajamarca"></label>
-      <label class="f">Coordenadas (lat, lng)<input type="text" id="cfCoords" value="-7.1547444, -78.5166566" required><small>Google Maps → clic derecho sobre la tienda</small></label>
-      <label class="f">Radio permitido (m)<input type="number" id="cfRadio" value="80" min="10" max="5000"></label>
-      <label class="f">Turno: inicio<input type="time" id="cfIni" value="16:00"></label><label class="f">Turno: fin<input type="time" id="cfFin" value="19:00"></label></div>
+      <label class="f">Nombre de la tienda<input type="text" id="cfTienda" value="${esc(t.nombre || '')}" placeholder="Ej.: Tienda principal" required></label>
+      <label class="f">Dirección o referencia<input type="text" id="cfDir" placeholder="Ej.: Av. principal 123"></label>
+      <label class="f">Coordenadas (lat, lng)<input type="text" id="cfCoords" value="${esc(t.coords || '')}" placeholder="-7.1547, -78.5166" required><small>Google Maps → clic derecho sobre la tienda</small></label>
+      <label class="f">Radio permitido (m)<input type="number" id="cfRadio" value="${t.radio_m || 80}" min="10" max="5000"></label>
+      <label class="f">Turno: inicio<input type="time" id="cfIni" value="${tu.inicio}"></label><label class="f">Turno: fin<input type="time" id="cfFin" value="${tu.fin}"></label></div>
       <p class="tiny muted">Se crea un turno diario con este horario. Luego puedes cambiarlo por día en Horarios → Plantilla semanal.</p></fieldset>
     <fieldset class="stack" style="border:0;padding:0;margin:0"><legend class="eyebrow" style="margin-bottom:8px">3 · Tu equipo</legend>
       <label class="f">Una persona por línea: nombre y celular<textarea id="cfEquipo" rows="8" placeholder="Analy Alcantara 998 814 382&#10;Flor Pari 946 745 424&#10;…"></textarea><small>A cada una se le crea su usuario (V01, V02…) y una clave de 4 números.</small></label></fieldset>
@@ -89,9 +91,9 @@ function pintarConfigurar() {
 
 function pintarAccesos(equipo) {
   const url = location.origin + '/';
-  const msg = (p) => `Hola ${primerNombre(p.nombre)} 👋 Ya está lista la app de asistencia de ${P.empresa?.nombre || 'Nube.chic'}.\n\n🔗 ${url}\n👤 Usuario: ${p.codigo}\n🔑 Clave: ${p.pin}\n\nÁbrela en tu celular, agrégala a tu pantalla de inicio y permite la ubicación al marcar tu entrada. Los domingos de 9 a 10 p. m. eliges tu horario de la semana. ¡Gracias!`;
+  const msg = (p) => `Hola ${primerNombre(p.nombre)} 👋 Ya está lista la app de asistencia de ${P.empresa?.nombre || P.marca?.nombre || ''}.\n\n🔗 ${url}\n👤 Usuario: ${p.codigo}\n🔑 Clave: ${p.pin}\n\nÁbrela en tu celular, agrégala a tu pantalla de inicio y permite la ubicación al marcar tu entrada. Los domingos de 9 a 10 p. m. eliges tu horario de la semana. ¡Gracias!`;
   redibujar(raiz, `<div class="login-p"><div class="card stack aparece" style="width:min(820px,100%)">
-    <img src="/assets/logo.webp" alt="Nube.chic">
+    <img src="/assets/logo.webp" alt="${esc(P.empresa?.nombre || '')}">
     <div class="center"><div class="eyebrow">Listo</div><h1>Accesos de tu equipo</h1><p class="muted small">Guarda o envía estas claves ahora: por seguridad no se vuelven a mostrar. Si alguien la pierde, genera una nueva en Equipo → Nuevo PIN.</p></div>
     ${equipo.length ? `<div class="table-wrap"><table class="t"><thead><tr><th>Usuario</th><th>Nombre</th><th>Celular</th><th>Clave</th><th></th></tr></thead><tbody>
       ${equipo.map((p) => `<tr><td class="num"><b>${esc(p.codigo)}</b></td><td>${esc(nombreBonito(p.nombre))}</td><td class="num">${p.telefono ? '+51 ' + esc(p.telefono) : '—'}</td><td class="num"><b>${esc(p.pin)}</b></td>
@@ -181,7 +183,7 @@ document.addEventListener('submit', async (e) => {
     if ($('#cfClave').value !== $('#cfClave2').value) { $('#cfErr').textContent = 'Las contraseñas no coinciden.'; return; }
     try {
       const r = await api.post('/panel/configurar', {
-        empresa: v('cfEmpresa'), admin: { codigo: v('cfUsuario'), nombre: v('cfNombre'), clave: $('#cfClave').value },
+        empresa: v('cfEmpresa'), rubro: v('cfRubro'), admin: { codigo: v('cfUsuario'), nombre: v('cfNombre'), clave: $('#cfClave').value },
         tienda: { nombre: v('cfTienda'), direccion: v('cfDir'), coords: v('cfCoords'), radio_m: Number(v('cfRadio')) || 80 },
         horario: { inicio: v('cfIni'), fin: v('cfFin') }, equipo: $('#cfEquipo').value,
       });
@@ -220,6 +222,6 @@ setInterval(async () => { if (P.yo) { try { const r = await api.get('/estado'); 
 activarTooltips();
 
 (async () => {
-  try { const e = await api.get('/estado'); P.demo = e.demo; P.configurar = e.configurar; P.tiempoReal = e.tiempoReal; } catch {}
+  try { const e = await api.get('/estado'); P.demo = e.demo; P.configurar = e.configurar; P.tiempoReal = e.tiempoReal; P.marca = e.marca; } catch {}
   try { await iniciarSesion(); } catch { P.yo = null; pintar(); }
 })();

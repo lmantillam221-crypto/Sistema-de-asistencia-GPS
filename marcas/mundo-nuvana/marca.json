@@ -1,0 +1,10 @@
+{
+  "id": "mundo-nuvana",
+  "nombre": "Mundo Nuvana",
+  "nombreApp": "Mundo Nuvana · Asistencia",
+  "rubro": "Moda y accesorios",
+  "colorTema": "#3387a2",
+  "colorFondo": "#f6fafc",
+  "tienda": { "nombre": "", "coords": "", "radio_m": 80 },
+  "turno": { "inicio": "16:00", "fin": "19:00" }
+}

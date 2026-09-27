@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -8,6 +9,7 @@ import { rutasAuth } from './routes/auth.js';
 import { rutasApp } from './routes/app.js';
 import { rutasPanel } from './routes/panel.js';
 import { manejarErrores, soloJson } from './middleware.js';
+import { aplicarMarca } from './marcas.js';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
@@ -55,12 +57,24 @@ export function crearApp(ctx) {
   app.get('/shared/:archivo', (req, res, next) => (COMPARTIDOS.has(req.params.archivo)
     ? res.type('application/javascript').set('Cache-Control', 'no-cache').sendFile(path.join(RAIZ, 'src', 'domain', req.params.archivo))
     : next()));
+  // Marca: sus archivos (logo, íconos, css/marca.css) reemplazan a los predeterminados
+  const dirMarca = path.join(RAIZ, 'marcas', ctx.cfg.marca.id, 'publico');
+  const plantilla = (archivo, tipo) => (req, res) => {
+    const propio = path.join(dirMarca, archivo);
+    const f = fs.existsSync(propio) ? propio : path.join(publico, archivo);
+    res.type(tipo).set('Cache-Control', 'no-cache').send(aplicarMarca(fs.readFileSync(f, 'utf8'), ctx.cfg.marca));
+  };
+  app.get(['/', '/index.html'], plantilla('index.html', 'html'));
+  app.get(['/panel', '/panel.html', '/panel/*resto'], plantilla('panel.html', 'html'));
+  app.get('/manifest.webmanifest', plantilla('manifest.webmanifest', 'application/manifest+json'));
+  if (fs.existsSync(dirMarca)) app.use(express.static(dirMarca, { maxAge: ctx.cfg.produccion ? '1h' : 0, index: false }));
+
   app.use('/vendor/leaflet', express.static(path.dirname(require.resolve('leaflet/dist/leaflet.js')), { maxAge: '30d', immutable: true }));
   app.use(express.static(publico, {
+    index: false,
     maxAge: ctx.cfg.produccion ? '1h' : 0,
     setHeaders: (res, archivo) => { if (archivo.endsWith('sw.js') || archivo.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache'); },
   }));
-  app.get(['/panel', '/panel/*resto'], (req, res) => res.sendFile(path.join(publico, 'panel.html')));
   app.use(manejarErrores(ctx));
   return app;
 }

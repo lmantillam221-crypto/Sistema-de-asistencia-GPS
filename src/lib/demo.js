@@ -11,7 +11,9 @@ const EQUIPO_DEMO = [
 export function asegurarBaseDemo(ctx) {
   let tiendas = ctx.s.tiendas.listar();
   if (!tiendas.length) {
-    const t = ctx.s.tiendas.crear({ codigo: 'L1', nombre: 'Galería Arcángel', direccion: 'Cajamarca', lat: -7.1547444, lng: -78.5166566, radio_m: 80 });
+    const m = ctx.cfg.marca?.tienda || {};
+    const [lat, lng] = String(m.coords || '-7.1547444, -78.5166566').split(',').map(Number);
+    const t = ctx.s.tiendas.crear({ codigo: 'L1', nombre: m.nombre || 'Tienda principal', direccion: '', lat, lng, radio_m: m.radio_m || 80 });
     ctx.s.tiendas.guardarPlantillas(t.id, [0, 1, 2, 3, 4, 5, 6].map((dia) => ({ dia, inicio: '16:00', fin: '19:00', cupos: 1 })));
     tiendas = [t];
   }

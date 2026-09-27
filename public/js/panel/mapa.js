@@ -2,6 +2,8 @@
 import { esc } from '../core/util.js';
 
 /** Crea (o recrea tras un redibujado) un mapa en el elemento, conservando la vista anterior. */
+const colorMarca = (v, d) => getComputedStyle(document.documentElement).getPropertyValue(v).trim() || d;
+
 export function crearMapa(el, previo = null, { alClic = null } = {}) {
   const L = window.L;
   let vista = null;
@@ -18,8 +20,8 @@ export function crearMapa(el, previo = null, { alClic = null } = {}) {
       capa.clearLayers();
       const b = [];
       for (const t of tiendas) {
-        L.circle([t.lat, t.lng], { radius: t.radio_m, color: '#e2508a', weight: 2, fillColor: '#ff91ae', fillOpacity: 0.18 }).addTo(capa).bindTooltip(esc(t.nombre));
-        L.circleMarker([t.lat, t.lng], { radius: 4, color: '#c7336c', fillOpacity: 1 }).addTo(capa);
+        L.circle([t.lat, t.lng], { radius: t.radio_m, color: colorMarca('--mapa-borde', '#e2508a'), weight: 2, fillColor: colorMarca('--mapa-relleno', '#fc90ae'), fillOpacity: 0.18 }).addTo(capa).bindTooltip(esc(t.nombre));
+        L.circleMarker([t.lat, t.lng], { radius: 4, color: colorMarca('--mapa-centro', '#c2386c'), fillOpacity: 1 }).addTo(capa);
         b.push([t.lat, t.lng]);
       }
       for (const p of puntos) {

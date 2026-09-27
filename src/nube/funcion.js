@@ -19,8 +19,11 @@ import migracion001 from '../db/migrations/001_inicial.sql';
 const MIGRACIONES = [{ nombre: '001_inicial.sql', sql: migracion001 }];
 let sqlListo = null, ctx = null, api = null, etagActual, ultimaTarea = 0;
 
+// Marca fijada al empaquetar (MARCA en el build de Netlify); se puede sobrescribir con la variable de entorno.
+const MARCA_COMPILADA = typeof __MARCA__ !== 'undefined' ? __MARCA__ : undefined; // eslint-disable-line no-undef
+
 function configuracion(env) {
-  return { ...leerConfig(env), dbPath: ':memory:', produccion: true, trustProxy: true, demo: false, tiempoReal: 'sondeo' };
+  return { ...leerConfig({ ...env, MARCA: env.MARCA || MARCA_COMPILADA }), dbPath: ':memory:', produccion: true, trustProxy: true, demo: false, tiempoReal: 'sondeo' };
 }
 
 async function cargar(almacen, env) {

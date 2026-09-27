@@ -8,6 +8,8 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # Marca del sitio: por defecto nube-chic. Para Mundo Nuvana define MARCA = "mundo-nuvana"
+  # aquí o en Netlify → Site configuration → Environment variables.
 
 [functions]
   directory = "dist/netlify/funciones"

@@ -1,6 +1,6 @@
 /* Service worker: la app abre al instante y funciona con mala señal. La API nunca se guarda en caché. */
-const VERSION = 'nc-v2.0.0';
-const BASE = ['/', '/index.html', '/css/app.css', '/css/movil.css', '/assets/logo.webp', '/assets/icon-192.png', '/manifest.webmanifest',
+const VERSION = 'nc-v2.2.0';
+const BASE = ['/', '/index.html', '/css/app.css', '/css/movil.css', '/css/marca.css', '/assets/logo.webp', '/assets/icon-192.png', '/manifest.webmanifest',
   '/js/colaborador/main.js', '/js/colaborador/gps.js', '/js/core/api.js', '/js/core/ui.js', '/js/core/util.js', '/shared/tiempo.js', '/shared/geo.js'];
 
 self.addEventListener('install', (e) => {
