@@ -17,7 +17,10 @@
   node_bundler = "esbuild"
 
 [functions."tareas"]
-  schedule = "*/10 * * * *"
+  # Cada 15 minutos de 8:00 a. m. a 11:59 p. m. hora de Perú (UTC-5).
+  # Fuera de ese horario no corre, así la base de datos (Neon) se apaga sola de noche
+  # y el uso se mantiene dentro del plan gratuito.
+  schedule = "*/15 0-4,13-23 * * *"
 
 [[redirects]]
   from = "/api/*"

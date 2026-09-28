@@ -100,7 +100,7 @@ El mismo código sirve a varias empresas. Cada marca vive en `marcas/<id>/`:
 
 ## Publicarlo en Netlify (recomendado)
 
-El proyecto trae `netlify.toml`: el sitio (app y panel), la API como **función de Netlify** y una **función programada** (`tareas`, cada 10 minutos) que calcula multas automáticas y hace mantenimiento. Los datos viven en **PostgreSQL** (Neon / Netlify DB). HTTPS viene activado, así que el GPS de los celulares funciona.
+El proyecto trae `netlify.toml`: el sitio (app y panel), la API como **función de Netlify** y una **función programada** (`tareas`, cada 15 minutos de 8 a. m. a medianoche, hora de Perú; de noche no corre para que la base se apague sola y el uso quede dentro de los planes gratuitos) que calcula multas automáticas y hace mantenimiento. Los datos viven en **PostgreSQL** (Neon / Netlify DB). HTTPS viene activado, así que el GPS de los celulares funciona.
 
 ### 1. Base de datos (una sola vez)
 

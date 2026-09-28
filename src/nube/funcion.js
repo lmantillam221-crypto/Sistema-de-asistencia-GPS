@@ -88,5 +88,5 @@ export async function atenderNetlify(request, { fuente = null, env = process.env
 export async function tareasNetlify({ fuente = null, env = process.env, almacenAnterior = null } = {}) {
   if (!fuente && !urlPostgres(env)) return { omitido: 'sin base de datos' };
   const { ctx } = await contexto({ fuente, env, almacenAnterior });
-  return ejecutarTareas(ctx, { limpieza: new Date().getUTCHours() === 8 && new Date().getUTCMinutes() < 15 });
+  return ejecutarTareas(ctx, { limpieza: new Date().getUTCHours() === 13 && new Date().getUTCMinutes() < 15 /* 8:00 a. m. de Perú */ });
 }
