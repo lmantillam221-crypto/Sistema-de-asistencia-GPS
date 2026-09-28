@@ -45,14 +45,14 @@ export function autenticar(ctx, cookie, roles = null) {
  */
 export function porPeticion(ctx) {
   return (req, res, next) => {
-    if (req.path.endsWith('/stream')) return ctx.s.empresa.refrescar().then(() => next(), next);
+    if (req.path.endsWith('/stream')) return ctx.s.empresa.vigente().then(() => next(), next);
     ctx.db.exclusivo(() => new Promise((listo) => {
       let hecho = false;
       const fin = () => { if (!hecho) { hecho = true; clearTimeout(t); listo(); } };
       const t = setTimeout(fin, 30000); // nunca retener la base más de 30 s
       res.on('finish', fin);
       res.on('close', fin);
-      ctx.s.empresa.refrescar().then(() => next(), (e) => { next(e); });
+      ctx.s.empresa.vigente().then(() => next(), (e) => { next(e); });
     })).catch(() => {});
   };
 }

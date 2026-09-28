@@ -5,11 +5,20 @@ import { validar } from '../lib/errores.js';
    se consultan de forma síncrona con obtener()/ajustes() durante esa petición. */
 export function servicioEmpresa(ctx) {
   const { db } = ctx;
-  let cache = null;
+  let cache = null, leido = 0;
+  // Las reglas cambian muy poco: se releen como mucho cada 15 s (cada instancia ve los cambios de otra en ese plazo;
+  // la instancia que los guarda los ve al instante).
+  const VIGENCIA_MS = 15000;
   const convertir = (r) => { if (!r) return null; const { config, ...resto } = r; return { ...resto, ajustes: normalizarAjustes(JSON.parse(config || '{}')) }; };
   const api = {
+    /** Lee la empresa si el dato guardado tiene más de 15 s (o siempre, con forzar). */
+    async vigente() {
+      if (cache && Date.now() - leido < VIGENCIA_MS) return cache;
+      return api.refrescar();
+    },
     async refrescar() {
       cache = convertir(await db.prepare('SELECT * FROM empresa WHERE id = 1').get());
+      leido = Date.now();
       if (cache) ctx.reloj.tz = cache.zona_horaria;
       return cache;
     },

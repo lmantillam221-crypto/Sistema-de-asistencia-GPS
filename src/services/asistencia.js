@@ -41,8 +41,11 @@ export function servicioAsistencia(ctx) {
     const marcas = [], reportes = [];
     for (let i = 0; i < ids.length; i += 500) {
       const parte = ids.slice(i, i + 500), ph = parte.map(() => '?').join(',');
-      marcas.push(...(await db.prepare(`SELECT * FROM marcas WHERE turno_id IN (${ph}) ORDER BY hora, id`).all(...parte)));
-      reportes.push(...(await db.prepare(`SELECT * FROM reportes_turno WHERE turno_id IN (${ph})`).all(...parte)));
+      const [m, r] = await Promise.all([
+        db.prepare(`SELECT * FROM marcas WHERE turno_id IN (${ph}) ORDER BY hora, id`).all(...parte),
+        db.prepare(`SELECT * FROM reportes_turno WHERE turno_id IN (${ph})`).all(...parte),
+      ]);
+      marcas.push(...m); reportes.push(...r);
     }
     const uids = [...new Set(marcas.map((m) => m.usuario_id))];
     const nombres = new Map(uids.length ? (await db.prepare(`SELECT id, nombre FROM usuarios WHERE id IN (${uids.map(() => '?').join(',')})`).all(...uids)).map((u) => [u.id, u.nombre]) : []);
@@ -187,16 +190,21 @@ export function servicioAsistencia(ctx) {
       const tope = hasta > ahora.fecha ? ahora.fecha : hasta;
       if (desde > tope) return [];
       const aj = ctx.s.empresa.ajustes();
-      const turnos = await ctx.s.turnos.listar({ desde, hasta: tope, tiendaId });
-      const marcas = (await db.prepare(`SELECT id, usuario_id, turno_id, tipo, hora, ts, capturado, estado, distancia_m, precision_m, observaciones FROM marcas
-        WHERE fecha BETWEEN ? AND ? AND turno_id IS NOT NULL ORDER BY hora, id`).all(desde, tope)).map(leerMarca);
+      await ctx.s.turnos.asegurarRango(desde, tope);
+      const [turnos, marcasCrudas, multas, reportes, listaUsuarios] = await Promise.all([
+        ctx.s.turnos.listar({ desde, hasta: tope, tiendaId }),
+        db.prepare(`SELECT id, usuario_id, turno_id, tipo, hora, ts, capturado, estado, distancia_m, precision_m, observaciones FROM marcas
+          WHERE fecha BETWEEN ? AND ? AND turno_id IS NOT NULL ORDER BY hora, id`).all(desde, tope),
+        db.prepare("SELECT turno_id, usuario_id, SUM(monto) AS total FROM multas WHERE fecha BETWEEN ? AND ? AND estado <> 'anulada' AND turno_id IS NOT NULL GROUP BY turno_id, usuario_id").all(desde, tope),
+        db.prepare('SELECT r.* FROM reportes_turno r JOIN turnos t ON t.id = r.turno_id WHERE t.fecha BETWEEN ? AND ?').all(desde, tope),
+        db.prepare('SELECT id, nombre, codigo FROM usuarios').all(),
+      ]);
+      const marcas = marcasCrudas.map(leerMarca);
       const porClave = agrupar(marcas, (m) => m.turno_id + '|' + m.usuario_id);
       const personasPorTurno = agrupar(marcas, (m) => m.turno_id);
-      const multas = await db.prepare("SELECT turno_id, usuario_id, SUM(monto) AS total FROM multas WHERE fecha BETWEEN ? AND ? AND estado <> 'anulada' AND turno_id IS NOT NULL GROUP BY turno_id, usuario_id").all(desde, tope);
       const multaDe = new Map(multas.map((m) => [m.turno_id + '|' + m.usuario_id, Number(m.total)]));
-      const reportes = await db.prepare('SELECT r.* FROM reportes_turno r JOIN turnos t ON t.id = r.turno_id WHERE t.fecha BETWEEN ? AND ?').all(desde, tope);
       const repDe = new Map(reportes.map((r) => [r.turno_id + '|' + r.usuario_id, r]));
-      const usuarios = new Map((await db.prepare('SELECT id, nombre, codigo FROM usuarios').all()).map((u) => [u.id, u]));
+      const usuarios = new Map(listaUsuarios.map((u) => [u.id, u]));
       const out = [];
       for (const t of turnos) {
         const quienes = new Set();
@@ -229,9 +237,13 @@ export function servicioAsistencia(ctx) {
     },
 
     /** Resumen por persona (planilla de horas, puntualidad, ventas y multas). */
-    async planilla({ desde, hasta, tiendaId = null, usuarioId = null }) {
-      const filasP = await api.periodo({ desde, hasta, tiendaId, usuarioId });
-      const pend = new Map((await db.prepare("SELECT usuario_id, SUM(monto) AS t FROM multas WHERE estado = 'pendiente' GROUP BY usuario_id").all()).map((r) => [r.usuario_id, Number(r.t)]));
+    /** Resumen por persona. Si ya se calculó el período (filas), se reutiliza. */
+    async planilla({ desde, hasta, tiendaId = null, usuarioId = null, filas = null }) {
+      const [filasP, pendientes] = await Promise.all([
+        filas || api.periodo({ desde, hasta, tiendaId, usuarioId }),
+        db.prepare("SELECT usuario_id, SUM(monto) AS t FROM multas WHERE estado = 'pendiente' GROUP BY usuario_id").all(),
+      ]);
+      const pend = new Map(pendientes.map((r) => [r.usuario_id, Number(r.t)]));
       const por = new Map();
       for (const r of filasP) {
         if (!por.has(r.usuarioId)) por.set(r.usuarioId, { usuarioId: r.usuarioId, nombre: r.nombre, codigo: r.codigo, turnos: 0, aTiempo: 0, tarde: 0, faltas: 0, coberturas: 0, minutos: 0, minutosTarde: 0, ventas: 0, prendas: 0, monto: 0, multas: 0, reportes: 0, reportesDentro: 0 });

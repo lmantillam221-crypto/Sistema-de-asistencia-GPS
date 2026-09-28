@@ -45,15 +45,22 @@ export function rutasApp(ctx) {
   /** Todo lo que la pantalla "Hoy" necesita en una sola llamada (consultas en lote). */
   r.get('/hoy', h(async (req, res) => {
     const u = req.usuario, ahora = ctx.reloj.ahora(), aj = ctx.s.empresa.ajustes();
-    const tiendas = new Map((await ctx.s.tiendas.listar({ todas: true })).map((ti) => [ti.id, ti]));
+    // Primero se asegura que existan los turnos (puede escribir); luego todas las lecturas van en paralelo.
+    await ctx.s.turnos.asegurarRango(ahora.fecha, sumarDias(ahora.fecha, 21));
+    const [listaTiendas, mios, delDia, abierto, cubiertos, multas, abiertas] = await Promise.all([
+      ctx.s.tiendas.listar({ todas: true }),
+      ctx.s.turnos.deUsuario(u.id, ahora.fecha, sumarDias(ahora.fecha, 21)),
+      ctx.s.turnos.deFecha(ahora.fecha),
+      ctx.s.asistencia.turnoAbierto(u.id, ahora.fecha),
+      ctx.db.prepare('SELECT DISTINCT turno_id FROM marcas WHERE usuario_id = ? AND fecha = ?').all(u.id, ahora.fecha),
+      ctx.s.multas.listar({ usuarioId: u.id, estado: 'pendiente' }),
+      ctx.s.coberturas.abiertasPara(u),
+    ]);
+    const tiendas = new Map(listaTiendas.map((ti) => [ti.id, ti]));
     const conTienda = (t) => { const ti = tiendas.get(t.tienda_id); return { ...t, tienda: ti && { id: ti.id, nombre: ti.nombre, lat: ti.lat, lng: ti.lng, radio_m: ti.radio_m, direccion: ti.direccion } }; };
-    const mios = await ctx.s.turnos.deUsuario(u.id, ahora.fecha, sumarDias(ahora.fecha, 21));
-    const delDia = await ctx.s.turnos.deFecha(ahora.fecha);
-    const abierto = await ctx.s.asistencia.turnoAbierto(u.id, ahora.fecha);
     const trabajados = new Map();
     // Turnos de hoy donde la persona tiene marcas (propios o cubiertos)
     for (const t of [...mios.filter((t) => t.fecha === ahora.fecha), ...(abierto ? [abierto] : [])]) trabajados.set(t.id, t);
-    const cubiertos = await ctx.db.prepare('SELECT DISTINCT turno_id FROM marcas WHERE usuario_id = ? AND fecha = ?').all(u.id, ahora.fecha);
     for (const c of cubiertos) if (!trabajados.has(c.turno_id)) trabajados.set(c.turno_id, delDia.find((t) => t.id === c.turno_id) || await ctx.s.turnos.obtener(c.turno_id));
     const lista = [...trabajados.values()].filter(Boolean).sort((a, b) => a.inicio.localeCompare(b.inicio));
     const lote = await ctx.s.asistencia.cargarLote(lista);
@@ -67,8 +74,6 @@ export function rutasApp(ctx) {
     const otrosHoy = delDia.filter((t) => t.usuario_id !== u.id && !trabajados.has(t.id) && aMin(t.fin) > ahora.minutos)
       .map((t) => ({ id: t.id, inicio: t.inicio, fin: t.fin, usuario: t.usuario_nombre, tienda: conTienda(t).tienda }));
     const v = infoVentana(aj.ventana, ahora);
-    const multas = await ctx.s.multas.listar({ usuarioId: u.id, estado: 'pendiente' });
-    const abiertas = await ctx.s.coberturas.abiertasPara(u);
     res.json({
       ahora, usuario: publico(u), empresa: ctx.s.empresa.obtener().nombre, demo: ctx.cfg.demo, ajustes: ajustesPublicos(),
       turnosHoy, abierto: abierto?.id ?? null, otrosHoy,
@@ -140,7 +145,8 @@ export function rutasApp(ctx) {
     const desde = esFecha(req.query.desde) ? req.query.desde : hoy.slice(0, 8) + '01';
     const hasta = esFecha(req.query.hasta) ? req.query.hasta : hoy;
     const filas = await ctx.s.asistencia.periodo({ desde, hasta, usuarioId: req.usuario.id });
-    res.json({ desde, hasta, filas, resumen: (await ctx.s.asistencia.planilla({ desde, hasta, usuarioId: req.usuario.id }))[0] || null });
+    const resumen = (await ctx.s.asistencia.planilla({ desde, hasta, usuarioId: req.usuario.id, filas }))[0] || null;
+    res.json({ desde, hasta, filas, resumen });
   }));
 
   r.post('/clave', h(async (req, res) => {

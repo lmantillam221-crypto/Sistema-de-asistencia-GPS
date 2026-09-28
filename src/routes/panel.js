@@ -63,10 +63,17 @@ export function rutasPanel(ctx) {
   /* ---------- Operación del día ---------- */
   r.get('/dia', h(async (req, res) => {
     const fecha = esFecha(req.query.fecha) ? req.query.fecha : hoy();
-    const d = await ctx.s.asistencia.dia(fecha, Number(req.query.tienda) || null);
-    res.json({ ...d, recordatorios: await ctx.s.recordatorios.listar(), tiendas: await ctx.s.tiendas.listar(), coberturas: await ctx.s.coberturas.listar({ estado: 'abierta' }), justificacionesPendientes: (await ctx.s.multas.justificaciones({ estado: 'pendiente' })).length });
+    await ctx.s.turnos.asegurarRango(fecha, fecha);
+    const [d, recordatorios, tiendas, coberturas, justificaciones] = await Promise.all([
+      ctx.s.asistencia.dia(fecha, Number(req.query.tienda) || null), ctx.s.recordatorios.listar(), ctx.s.tiendas.listar(),
+      ctx.s.coberturas.listar({ estado: 'abierta' }), ctx.s.multas.justificaciones({ estado: 'pendiente' }),
+    ]);
+    res.json({ ...d, recordatorios, tiendas, coberturas, justificacionesPendientes: justificaciones.length });
   }));
-  r.get('/en-vivo', h(async (req, res) => res.json({ tiendas: await ctx.s.tiendas.listar(), posiciones: await ctx.s.asistencia.enVivo(), ahora: ctx.reloj.ahora() })));
+  r.get('/en-vivo', h(async (req, res) => {
+    const [tiendas, posiciones] = await Promise.all([ctx.s.tiendas.listar(), ctx.s.asistencia.enVivo()]);
+    res.json({ tiendas, posiciones, ahora: ctx.reloj.ahora() });
+  }));
   r.post('/avisos', h(async (req, res) => {
     const d = validar(z.object({ clave: z.string().max(120), tipo: z.string().max(30) }), req.body);
     await ctx.s.recordatorios.marcar(d.clave, d.tipo, req.usuario);
@@ -89,7 +96,7 @@ export function rutasPanel(ctx) {
     const q = rangoQ(req.query);
     enviarCSV(res, `planilla_${q.desde}_a_${q.hasta}.csv`, [
       ['Código', 'Colaborador(a)', 'Turnos', 'A tiempo', 'Tardanzas', 'Faltas', 'Coberturas', 'Horas en tienda', 'Asistencia %', 'Puntualidad %', 'GPS en tienda %', 'Ventas (n°)', 'Prendas', 'Total vendido', 'Venta por hora', 'Multas del período', 'Multas pendientes (total)'],
-      ...ctx.s.asistencia.planilla(q).map((p) => [p.codigo, p.nombre, p.turnos, p.aTiempo, p.tarde, p.faltas, p.coberturas, (p.minutos / 60).toFixed(2), p.asistencia ?? '', p.puntualidad ?? '', p.gpsEnLocal ?? '', p.ventas, p.prendas, p.monto.toFixed(2), p.ventaPorHora ?? '', p.multas.toFixed(2), p.pendiente.toFixed(2)]),
+      ...(await ctx.s.asistencia.planilla(q)).map((p) => [p.codigo, p.nombre, p.turnos, p.aTiempo, p.tarde, p.faltas, p.coberturas, (p.minutos / 60).toFixed(2), p.asistencia ?? '', p.puntualidad ?? '', p.gpsEnLocal ?? '', p.ventas, p.prendas, p.monto.toFixed(2), p.ventaPorHora ?? '', p.multas.toFixed(2), p.pendiente.toFixed(2)]),
     ]);
   }));
   r.get('/export/multas.csv', h(async (req, res) => {
@@ -107,12 +114,12 @@ export function rutasPanel(ctx) {
     // El día de elección (domingo) se trabaja directamente sobre la semana siguiente.
     const lunes = lunesDe(esFecha(req.query.lunes) ? req.query.lunes : v.abierta || v.esHoy ? v.semana : ahora.fecha);
     const tiendaId = Number(req.query.tienda) || null;
-    const turnos = await ctx.s.turnos.listar({ desde: lunes, hasta: sumarDias(lunes, 6), tiendaId });
-    res.json({
-      lunes, ventana: v, turnos, tiendas: await ctx.s.tiendas.listar(), colaboradores: await ctx.s.usuarios.colaboradores(),
-      especiales: (await ctx.s.tiendas.diasEspeciales({ desde: lunes })).filter((d) => d.fecha <= sumarDias(lunes, 6)),
-      texto: await ctx.s.turnos.textoSemana(lunes, tiendaId),
-    });
+    await ctx.s.turnos.asegurarRango(lunes, sumarDias(lunes, 6));
+    const [turnos, tiendas, colaboradores, especiales, texto] = await Promise.all([
+      ctx.s.turnos.listar({ desde: lunes, hasta: sumarDias(lunes, 6), tiendaId }), ctx.s.tiendas.listar(), ctx.s.usuarios.colaboradores(),
+      ctx.s.tiendas.diasEspeciales({ desde: lunes }), ctx.s.turnos.textoSemana(lunes, tiendaId),
+    ]);
+    res.json({ lunes, ventana: v, turnos, tiendas, colaboradores, especiales: especiales.filter((d) => d.fecha <= sumarDias(lunes, 6)), texto });
   }));
   r.put('/turnos/:id/asignar', h(async (req, res) => {
     const d = validar(z.object({ usuarioId: z.number().int().positive().nullable() }), req.body);

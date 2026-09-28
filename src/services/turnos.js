@@ -14,6 +14,17 @@ export function servicioTurnos(ctx) {
   const tieneMarcas = async (id) => !!(await db.prepare('SELECT 1 AS x FROM marcas WHERE turno_id = ? LIMIT 1').get(id));
   const insertarTurno = (tiendaId, fecha, p) => db.prepare('INSERT INTO turnos (tienda_id, fecha, inicio, fin, puesto, origen) VALUES (?, ?, ?, ?, ?, ?)').run(tiendaId, fecha, p.inicio, p.fin, p.puesto, p.origen);
 
+  // Días ya generados (dias_generados nunca se borra: basta con recordarlos) y tiendas activas por 30 s.
+  // Así la mayoría de las pantallas no consulta la base solo para confirmar que los turnos existen.
+  const generados = new Map(); // 'tienda|fecha' → cuándo se confirmó (se vuelve a confirmar cada 10 min)
+  const yaGenerado = (k) => Date.now() - (generados.get(k) || 0) < 600000;
+  let tiendasCache = null, tiendasLeidas = 0;
+  const tiendasActivas = async () => {
+    if (!tiendasCache || Date.now() - tiendasLeidas > 30000) { tiendasCache = await T().listar(); tiendasLeidas = Date.now(); }
+    return tiendasCache;
+  };
+  ctx.bus.on('cambio', (e) => { if (e?.tipo === 'tiendas') tiendasCache = null; });
+
   const api = {
     obtener: (id) => db.prepare(`${SELECT} WHERE t.id = ?`).get(id),
 
@@ -23,12 +34,15 @@ export function servicioTurnos(ctx) {
      */
     async asegurarRango(desde, hasta) {
       if (diasEntre(desde, hasta) > 400) throw invalido('El rango máximo es de 400 días.');
-      const tiendas = await T().listar();
+      const tiendas = await tiendasActivas();
       if (!tiendas.length) return;
+      const dias = [...rango(desde, hasta)];
+      if (dias.every((f) => tiendas.every((t) => yaGenerado(t.id + '|' + f)))) return;
       const hechos = new Set((await db.prepare('SELECT tienda_id, fecha FROM dias_generados WHERE fecha BETWEEN ? AND ?').all(desde, hasta)).map((r) => r.tienda_id + '|' + r.fecha));
       const faltan = [];
-      for (const f of rango(desde, hasta)) for (const t of tiendas) if (!hechos.has(t.id + '|' + f)) faltan.push([t.id, f]);
-      if (!faltan.length) return;
+      for (const f of dias) for (const t of tiendas) if (!hechos.has(t.id + '|' + f)) faltan.push([t.id, f]);
+      const recordar = () => { const ahora = Date.now(); if (generados.size > 5000) generados.clear(); for (const f of dias) for (const t of tiendas) generados.set(t.id + '|' + f, ahora); };
+      if (!faltan.length) return recordar();
       const plantillas = await T().todasPlantillas();
       const especiales = await T().diasEspeciales({ desde, hasta });
       await transaccion(db, async () => {
@@ -39,6 +53,7 @@ export function servicioTurnos(ctx) {
           for (const p of turnosPlanificados(fecha, plantillas.filter((x) => x.tienda_id === tiendaId), esp)) await insertarTurno(tiendaId, fecha, p);
         }
       });
+      recordar();
     },
 
     async resincronizarFecha(tiendaId, fecha) {
