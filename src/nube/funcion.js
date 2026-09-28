@@ -1,58 +1,74 @@
 /* =====================================================================
-   API en Netlify Functions. Misma lógica que el servidor Node:
-   - SQLite en memoria (sql.js), cargada desde Netlify Blobs y reutilizada mientras no cambie
-   - cada petición que modifica datos se guarda con escritura condicional (sin pisar a nadie)
-   - las multas automáticas se calculan al vuelo (no hay procesos permanentes)
+   API en Netlify Functions con PostgreSQL (Netlify DB / Neon).
+   - Cada instancia mantiene un pool de conexiones; PostgreSQL resuelve la concurrencia
+     (100+ personas a la vez) con transacciones y bloqueos de fila, sin reescribir archivos.
+   - Las tareas pesadas (multas automáticas) corren en la función programada "tareas".
+   - La primera vez, si existen datos de la versión anterior en Netlify Blobs, se copian solos.
    ===================================================================== */
-import initSqlJs from 'sql.js/dist/sql-asm.js';
-import { setSQL, DatabaseSync } from '../lib/sqljs.js';
+import { motorPostgres, fuenteNeon, urlPostgres } from '../db/motor.js';
 import { migrar } from '../db/index.js';
 import { leerConfig } from '../config.js';
 import { crearContexto } from '../services/index.js';
 import { rutasAuth } from '../routes/auth.js';
 import { rutasApp } from '../routes/app.js';
 import { rutasPanel } from '../routes/panel.js';
-import { manejarErrores, soloJson } from '../middleware.js';
+import { manejarErrores, soloJson, porPeticion } from '../middleware.js';
 import { Router, despachar } from '../lib/enrutador.js';
-import migracion001 from '../db/migrations/001_inicial.sql';
+import { ejecutarTareas } from '../jobs.js';
+import { migrarDesdeSqlite } from './migrar-blobs.js';
+import pg001 from '../db/migrations/postgres/001_inicial.sql';
+import sq001 from '../db/migrations/sqlite/001_inicial.sql';
+import sq002 from '../db/migrations/sqlite/002_indices.sql';
 
-const MIGRACIONES = [{ nombre: '001_inicial.sql', sql: migracion001 }];
-let sqlListo = null, ctx = null, api = null, etagActual, ultimaTarea = 0;
-
+const MIG_PG = [{ nombre: '001_inicial.sql', sql: pg001 }];
+const MIG_SQLITE = [{ nombre: '001_inicial.sql', sql: sq001 }, { nombre: '002_indices.sql', sql: sq002 }];
 // Marca fijada al empaquetar (MARCA en el build de Netlify); se puede sobrescribir con la variable de entorno.
 const MARCA_COMPILADA = typeof __MARCA__ !== 'undefined' ? __MARCA__ : undefined; // eslint-disable-line no-undef
+
+let listo = null;
 
 function configuracion(env) {
   return { ...leerConfig({ ...env, MARCA: env.MARCA || MARCA_COMPILADA }), dbPath: ':memory:', produccion: true, trustProxy: true, demo: false, tiempoReal: 'sondeo' };
 }
 
-async function cargar(almacen, env) {
-  const etag = await almacen.etag();
-  if (ctx && etag === etagActual) return;
-  const datos = etag ? await almacen.leer() : null;
-  if (!ctx) {
-    const db = new DatabaseSync(datos?.bytes ?? null);
-    db.exec('PRAGMA foreign_keys = ON');
-    migrar(db, MIGRACIONES);
-    ctx = crearContexto(configuracion(env), { db });
-    api = Router();
-    api.use(soloJson);
-    api.use(rutasAuth(ctx));
-    api.use('/app', rutasApp(ctx));
-    api.use('/panel', rutasPanel(ctx));
-  } else {
-    ctx.db.reemplazar(datos?.bytes ?? null);
-    migrar(ctx.db, MIGRACIONES);
-    ctx.s.empresa.olvidar();
-    ctx.s.empresa.asegurar();
+async function preparar({ fuente, env, almacenAnterior }) {
+  const db = motorPostgres(fuente || (await fuenteNeon(urlPostgres(env))));
+  await migrar(db, MIG_PG);
+  if (almacenAnterior && (await db.prepare('SELECT COUNT(*) AS n FROM empresa').get()).n === 0) {
+    try {
+      const anterior = await almacenAnterior();
+      const filas = anterior ? await migrarDesdeSqlite(db, anterior.bytes, MIG_SQLITE) : 0;
+      if (filas) console.log(`Migración desde Netlify Blobs completada: ${filas} filas.`);
+    } catch (e) { console.error('No se pudo migrar la base anterior de Netlify Blobs:', e); }
   }
-  etagActual = datos?.etag ?? null;
+  const ctx = await crearContexto(configuracion(env), { db });
+  const api = Router();
+  api.use(soloJson);
+  api.use(porPeticion(ctx));
+  api.use(rutasAuth(ctx));
+  api.use('/app', rutasApp(ctx));
+  api.use('/panel', rutasPanel(ctx));
+  return { ctx, api };
 }
 
+function contexto(opciones) {
+  listo ||= preparar(opciones).catch((e) => { listo = null; throw e; });
+  return listo;
+}
+
+const sinBase = () => Response.json({
+  error: 'Falta conectar la base de datos. En Netlify: Extensions → Neon (Netlify DB) → conectar, o define DATABASE_URL. Luego vuelve a desplegar.',
+  codigo: 'SIN_BASE',
+}, { status: 503 });
+
 /** Atiende un Request web estándar y devuelve un Response. */
-export async function atenderNetlify(request, { almacen, env = process.env, ip = '' } = {}) {
-  sqlListo ||= initSqlJs().then(setSQL);
-  await sqlListo;
+export async function atenderNetlify(request, { fuente = null, env = process.env, ip = '', almacenAnterior = null } = {}) {
+  if (!fuente && !urlPostgres(env)) return sinBase();
+  let ctx, api;
+  try { ({ ctx, api } = await contexto({ fuente, env, almacenAnterior })); } catch (e) {
+    console.error('Error al conectar con la base de datos:', e);
+    return Response.json({ error: 'No se pudo conectar con la base de datos. Inténtalo de nuevo en unos segundos.' }, { status: 503, headers: { 'Retry-After': '3' } });
+  }
   const url = new URL(request.url);
   const ruta = url.pathname.replace(/^\/\.netlify\/functions\/api/, '/api') + url.search;
   const metodo = request.method.toUpperCase();
@@ -61,23 +77,16 @@ export async function atenderNetlify(request, { almacen, env = process.env, ip =
   if (!['GET', 'HEAD'].includes(metodo)) { const t = await request.text(); if (t) { try { body = JSON.parse(t); } catch { body = null; } } }
   if (body === null) return Response.json({ error: 'JSON inválido.' }, { status: 400 });
 
-  for (let intento = 0; intento < 6; intento++) {
-    await cargar(almacen, env);
-    const c0 = ctx.db.cambiosTotales();
-    if (Date.now() - ultimaTarea > 60000) {
-      try { ctx.s.multas.sincronizar(); ctx.s.coberturas.vencer(); } catch (e) { console.error(e); }
-      ultimaTarea = Date.now();
-    }
-    const r = await despachar(api, manejarErrores(ctx), { method: metodo, url: ruta, headers, body, ip });
-    if (ctx.db.cambiosTotales() !== c0) {
-      const w = await almacen.escribir(ctx.db.exportar(), etagActual);
-      if (!w.ok) { etagActual = undefined; ultimaTarea = 0; await new Promise((ok) => setTimeout(ok, 60 + Math.random() * 140)); continue; }
-      etagActual = w.etag ?? (await almacen.etag());
-    }
-    const h = new Headers(r.headers);
-    h.set('Cache-Control', 'no-store');
-    for (const c of r.cookies) h.append('Set-Cookie', c);
-    return new Response(r.body ?? '', { status: r.status, headers: h });
-  }
-  return Response.json({ error: 'Hay muchas personas guardando a la vez. Inténtalo de nuevo en unos segundos.' }, { status: 503 });
+  const r = await despachar(api, manejarErrores(ctx), { method: metodo, url: ruta, headers, body, ip });
+  const h = new Headers(r.headers);
+  h.set('Cache-Control', 'no-store');
+  for (const c of r.cookies) h.append('Set-Cookie', c);
+  return new Response(r.body ?? '', { status: r.status, headers: h });
+}
+
+/** Tareas programadas (multas automáticas, coberturas vencidas, limpieza). */
+export async function tareasNetlify({ fuente = null, env = process.env, almacenAnterior = null } = {}) {
+  if (!fuente && !urlPostgres(env)) return { omitido: 'sin base de datos' };
+  const { ctx } = await contexto({ fuente, env, almacenAnterior });
+  return ejecutarTareas(ctx, { limpieza: new Date().getUTCHours() === 8 && new Date().getUTCMinutes() < 15 });
 }

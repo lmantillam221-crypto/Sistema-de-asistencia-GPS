@@ -1,6 +1,7 @@
 # Nube.chic · Asistencia en Netlify
 # - Sitio: app del equipo (/) y panel (/panel)
-# - API: función "api" con la base de datos en Netlify Blobs (no requiere servicios externos)
+# - API: función "api" con PostgreSQL (Netlify DB / Neon): concurrencia real y años de datos
+# - Tareas: función programada "tareas" (multas automáticas y mantenimiento)
 
 [build]
   command = "npm run build:netlify"
@@ -14,6 +15,9 @@
 [functions]
   directory = "dist/netlify/funciones"
   node_bundler = "esbuild"
+
+[functions."tareas"]
+  schedule = "*/10 * * * *"
 
 [[redirects]]
   from = "/api/*"

@@ -1,6 +1,6 @@
 {
   "name": "nube-chic-asistencia",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Control de asistencia con GPS, turnos, multas y cierre de caja para tiendas de moda y accesorios.",
   "type": "module",
   "private": true,
@@ -18,7 +18,8 @@
     "respaldo": "node --disable-warning=ExperimentalWarning scripts/respaldo.js",
     "e2e": "node --disable-warning=ExperimentalWarning test/e2e.mjs",
     "build:demo-web": "node scripts/build-demo-web.mjs",
-    "build:netlify": "node scripts/build-netlify.mjs"
+    "build:netlify": "node scripts/build-netlify.mjs",
+    "test:postgres": "MOTOR=postgres node --disable-warning=ExperimentalWarning --test --test-concurrency=1 test/api.test.js"
   },
   "repository": {
     "type": "git",
@@ -26,14 +27,18 @@
   },
   "license": "UNLICENSED",
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "@netlify/blobs": "^11.1.1",
+    "@netlify/neon": "^0.1.2",
     "compression": "^1.8.2",
     "express": "^5.2.1",
     "helmet": "^8.3.0",
     "leaflet": "^1.9.4",
+    "pg": "^8.23.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "esbuild": "^0.28.2",
     "playwright": "^1.56.1",
     "sql.js": "^1.14.2"

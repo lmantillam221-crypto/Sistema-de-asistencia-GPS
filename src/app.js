@@ -8,7 +8,7 @@ import compression from 'compression';
 import { rutasAuth } from './routes/auth.js';
 import { rutasApp } from './routes/app.js';
 import { rutasPanel } from './routes/panel.js';
-import { manejarErrores, soloJson } from './middleware.js';
+import { manejarErrores, soloJson, porPeticion } from './middleware.js';
 import { aplicarMarca } from './marcas.js';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -38,12 +38,13 @@ export function crearApp(ctx) {
   app.use(compression({ filter: (req, res) => !req.path.endsWith('/stream') && compression.filter(req, res) }));
   app.use(express.json({ limit: '25mb' }));
 
-  app.get('/salud', (req, res) => {
-    try { ctx.db.prepare('SELECT 1').get(); res.json({ ok: true, ahora: ctx.reloj.ahora() }); } catch { res.status(503).json({ ok: false }); }
+  app.get('/salud', async (req, res) => {
+    try { await ctx.db.prepare('SELECT 1 AS x').get(); res.json({ ok: true, motor: ctx.db.tipo, ahora: ctx.reloj.ahora() }); } catch { res.status(503).json({ ok: false }); }
   });
 
   const api = express.Router();
   api.use(soloJson);
+  api.use(porPeticion(ctx));
   api.use((req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
   api.use(rutasAuth(ctx));
   api.use('/app', rutasApp(ctx));

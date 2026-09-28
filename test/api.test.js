@@ -100,7 +100,7 @@ test('panel: día, período, planilla y exportación', async () => {
 
 test('multas: falta automática, justificación y anulación', async () => {
   S.irA('2026-10-01', '19:30'); // Lucía no fue
-  S.ctx.s.multas.sincronizar();
+  await S.ctx.s.multas.sincronizar();
   const m = await lucia.get('/api/app/multas');
   const falta = m.body.lista.find((x) => x.tipo === 'falta');
   assert.ok(falta);
@@ -159,13 +159,13 @@ test('importación desde la versión anterior (respaldo JSON)', async () => {
       },
     };
     const datos = leerFuenteAnterior(JSON.stringify(respaldo));
-    const r = importarAnterior(S2.ctx, datos);
+    const r = await importarAnterior(S2.ctx, datos);
     assert.deepEqual([r.colaboradoras, r.turnos, r.marcas, r.multas], [2, 1, 1, 1]);
     const c = S2.cliente();
     assert.equal((await c.post('/api/app/login', { codigo: 'V01', clave: '4321' })).status, 200, 'mantiene su PIN');
-    S2.ctx.s.multas.sincronizar();
-    assert.equal(S2.ctx.s.multas.listar({ estado: 'todas' }).length, 1, 'no duplica la multa importada');
+    await S2.ctx.s.multas.sincronizar();
+    assert.equal((await S2.ctx.s.multas.listar({ estado: 'todas' })).length, 1, 'no duplica la multa importada');
     // Idempotente para colaboradoras
-    assert.equal(importarAnterior(S2.ctx, datos).colaboradoras, 0);
+    assert.equal((await importarAnterior(S2.ctx, datos)).colaboradoras, 0);
   } finally { await S2.cerrar(); }
 });

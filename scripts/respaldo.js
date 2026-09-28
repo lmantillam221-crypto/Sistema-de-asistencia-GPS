@@ -1,4 +1,5 @@
-/* Copia de seguridad en caliente de la base de datos (segura aunque el servidor esté funcionando).
+/* Copia de seguridad en caliente de la base SQLite (segura aunque el servidor esté funcionando).
+   Con PostgreSQL usa las copias automáticas del proveedor o Panel → Configuración → Descargar respaldo.
    Uso: npm run respaldo [-- carpeta]   ·   Programable con cron: 0 23 * * * cd /app && npm run respaldo */
 import fs from 'node:fs';
 import path from 'node:path';

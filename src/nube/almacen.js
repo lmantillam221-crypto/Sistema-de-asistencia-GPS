@@ -1,6 +1,5 @@
-/* Dónde se guarda la base de datos cuando el sistema corre en Netlify:
-   un solo archivo SQLite en Netlify Blobs, con escritura condicional por ETag
-   (si dos personas guardan a la vez, la segunda se reintenta sobre los datos nuevos). */
+/* Versión anterior (hasta la 2.2): la base se guardaba como un archivo SQLite en Netlify Blobs.
+   Ahora la base es PostgreSQL; este módulo solo se usa para LEER esos datos y migrarlos. */
 
 const CLAVE = 'asistencia.db';
 

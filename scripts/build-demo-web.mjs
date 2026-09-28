@@ -17,7 +17,7 @@ const logo = 'data:image/webp;base64,' + fs.readFileSync(deMarca('assets/logo.we
 
 const ALIAS = {
   'node:sqlite': S('sqlite.js'), 'node:fs': S('fs.js'), fs: S('vacio.js'), 'node:path': S('path.js'), path: S('vacio.js'),
-  'node:os': S('varios.js'), 'node:url': S('varios.js'), 'node:events': S('events.js'), 'node:crypto': S('vacio.js'), crypto: S('vacio.js'),
+  'node:os': S('varios.js'), 'node:url': S('varios.js'), 'node:events': S('events.js'), 'node:async_hooks': S('async_hooks.js'), 'node:util': S('varios.js'), 'node:module': S('varios.js'), 'node:crypto': S('vacio.js'), crypto: S('vacio.js'),
   express: S('express.js'),
 };
 // Ajustes solo para la demo (el código real no cambia)
@@ -31,8 +31,8 @@ const plugin = {
   name: 'demo',
   setup(b) {
     b.onResolve({ filter: /^\/shared\/.+\.js$/ }, (a) => ({ path: path.join(RAIZ, 'src/domain', path.basename(a.path)) }));
-    b.onResolve({ filter: /lib\/seguridad\.js$/ }, () => ({ path: S('seguridad.js') }));
-    b.onResolve({ filter: /^(node:[a-z]+|fs|path|crypto|express)$/ }, (a) => (ALIAS[a.path] ? { path: ALIAS[a.path] } : undefined));
+    b.onResolve({ filter: /(^|\/)seguridad\.js$/ }, () => ({ path: S('seguridad.js') }));
+    b.onResolve({ filter: /^(node:[a-z_]+|fs|path|crypto|express)$/ }, (a) => (ALIAS[a.path] ? { path: ALIAS[a.path] } : undefined));
     b.onLoad({ filter: /public\/js\/.*\.js$/ }, (a) => {
       let t = leer(a.path);
       for (const [x, y] of PARCHES[path.relative(RAIZ, a.path)] || []) { if (!t.includes(x)) throw new Error(`Parche no aplicado en ${a.path}: ${x}`); t = t.split(x).join(y); }
@@ -43,7 +43,7 @@ const plugin = {
 
 const r = await build({
   entryPoints: [path.join(RAIZ, 'demo-web/entrada.js')], bundle: true, write: false, format: 'esm', platform: 'browser', target: 'es2022',
-  minify: true, legalComments: 'none', loader: { '.sql': 'text' }, define: { 'process.env': JSON.stringify({ MARCA: marca.id }), 'process.env.NODE_ENV': '"production"' }, plugins: [plugin], logLevel: 'warning',
+  minify: true, legalComments: 'none', loader: { '.sql': 'text' }, external: ['pg', '@neondatabase/serverless', '@electric-sql/pglite'], define: { 'process.env': JSON.stringify({ MARCA: marca.id }), 'process.env.NODE_ENV': '"production"' }, plugins: [plugin], logLevel: 'warning',
 });
 const js = r.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 const leafletDir = path.dirname(require.resolve('leaflet/dist/leaflet.js'));

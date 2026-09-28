@@ -84,7 +84,7 @@ function pintarConfigurar() {
       <label class="f">Turno: inicio<input type="time" id="cfIni" value="${tu.inicio}"></label><label class="f">Turno: fin<input type="time" id="cfFin" value="${tu.fin}"></label></div>
       <p class="tiny muted">Se crea un turno diario con este horario. Luego puedes cambiarlo por día en Horarios → Plantilla semanal.</p></fieldset>
     <fieldset class="stack" style="border:0;padding:0;margin:0"><legend class="eyebrow" style="margin-bottom:8px">3 · Tu equipo</legend>
-      <label class="f">Una persona por línea: nombre y celular<textarea id="cfEquipo" rows="8" placeholder="Analy Alcantara 998 814 382&#10;Flor Pari 946 745 424&#10;…"></textarea><small>A cada una se le crea su usuario (V01, V02…) y una clave de 4 números.</small></label></fieldset>
+      <label class="f">Una persona por línea: nombre y celular<textarea id="cfEquipo" rows="8" placeholder="Ana Torres 999 111 222&#10;Carla Díaz 988 333 444&#10;…"></textarea><small>A cada una se le crea su usuario (V01, V02…) y una clave de 4 números.</small></label></fieldset>
     <button class="btn-p btn-big" type="submit">Crear y entrar al panel</button>
     <div id="cfErr" class="small" style="color:var(--bad-ink)" role="alert"></div></form></div>`);
 }

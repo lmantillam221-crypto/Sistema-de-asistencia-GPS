@@ -1,4 +1,4 @@
-# Nube.chic · Asistencia v2
+# Nube.chic · Asistencia v3
 
 Sistema profesional de **control de asistencia con GPS** para tiendas de **moda y accesorios**: las colaboradoras marcan entrada y salida desde su celular, la ubicación se verifica contra la geocerca de la tienda, eligen sus turnos en una ventana semanal, registran el **cuadre de caja** de su turno y la supervisión ve todo **en vivo** desde un panel con dashboard, multas automáticas, reportes y planilla.
 
@@ -100,20 +100,48 @@ El mismo código sirve a varias empresas. Cada marca vive en `marcas/<id>/`:
 
 ## Publicarlo en Netlify (recomendado)
 
-El proyecto trae `netlify.toml`: el sitio (app y panel) y la API como **función de Netlify**, con la base de datos guardada en **Netlify Blobs** (incluido en Netlify, sin cuentas externas). HTTPS viene activado, así que el GPS de los celulares funciona.
+El proyecto trae `netlify.toml`: el sitio (app y panel), la API como **función de Netlify** y una **función programada** (`tareas`, cada 10 minutos) que calcula multas automáticas y hace mantenimiento. Los datos viven en **PostgreSQL** (Neon / Netlify DB). HTTPS viene activado, así que el GPS de los celulares funciona.
 
-1. Entra a [app.netlify.com](https://app.netlify.com) → **Add new site → Import an existing project → GitHub** y elige este repositorio (rama `claude/fervent-gauss-37h4sj` o la que uses).
-2. No cambies nada en la configuración de build (Netlify la lee de `netlify.toml`) y pulsa **Deploy**.
-3. Abre `https://tu-sitio.netlify.app/panel`: la primera vez aparece **Configura tu sistema**. Crea tu cuenta de administración, confirma la tienda y pega tu equipo (una persona por línea con su celular). El sistema genera usuario y clave para cada una, con botón para enviárselos por WhatsApp.
-4. Comparte con el equipo `https://tu-sitio.netlify.app/` para que instalen la app en su celular.
+### 1. Base de datos (una sola vez)
 
-Para **Mundo Nuvana** crea un segundo sitio desde el mismo repositorio y, antes del primer deploy, agrega en **Site configuration → Environment variables** la variable `MARCA` = `mundo-nuvana`. Cada sitio guarda sus datos por separado.
+Elige una opción:
 
-Opcional: en **Site configuration → Domain management** puedes poner un dominio propio.
+- **Neon directo (recomendada: permanente y gratis)**: crea una cuenta en [neon.tech](https://neon.tech), crea un proyecto (región *AWS São Paulo* o *US East*), copia la **connection string** (*Connection string → Pooled connection*, empieza con `postgresql://…`) y agrégala en Netlify → **Site configuration → Environment variables** como `DATABASE_URL`.
+- **Netlify DB**: en tu sitio de Netlify → **Extensions → Neon** → instalar y crear la base (o `npx netlify-cli db init` en la carpeta del proyecto). Netlify define `NETLIFY_DATABASE_URL` sola. Importante: **reclama la base en tu cuenta de Neon** (botón *Claim database*) para que no se elimine pasados unos días.
 
-> Netlify no permite subir funciones arrastrando una carpeta (Netlify Drop). Usa GitHub (pasos de arriba) o la CLI: `npx netlify-cli deploy --build --prod` dentro de la carpeta del proyecto.
+Sin base conectada, la API responde con un mensaje claro (“Falta conectar la base de datos”).
 
-Diferencias con el servidor Node: el panel se actualiza cada 20 segundos (en lugar de al instante) y las multas automáticas se calculan cuando alguien abre la app o el panel. Todo lo demás es igual. La copia de seguridad se descarga desde **Configuración**.
+### 2. Desplegar
+
+1. [app.netlify.com](https://app.netlify.com) → **Add new site → Import an existing project → GitHub** y elige este repositorio. No cambies la configuración de build (la lee de `netlify.toml`) y pulsa **Deploy**. También sirve `npx netlify-cli deploy --build --prod` desde la carpeta.
+2. Abre `https://tu-sitio.netlify.app/panel`: la primera vez aparece **Configura tu sistema** (cuenta de administración, tienda y equipo).
+3. Comparte `https://tu-sitio.netlify.app/` con el equipo para que instalen la app.
+
+**¿Ya usabas la versión anterior (Netlify Blobs)?** No pierdes nada: al primer acceso con la base conectada, el sistema copia solo todos los datos (equipo, claves, turnos, marcas, multas) a PostgreSQL. Las claves siguen siendo las mismas.
+
+Para **Mundo Nuvana** crea un segundo sitio (con **su propia base de datos**) y agrega la variable `MARCA` = `mundo-nuvana`.
+
+> Netlify no permite subir funciones arrastrando una carpeta (Netlify Drop). Usa GitHub o la CLI.
+
+### Por qué PostgreSQL (el “error 505/502/503” intermitente)
+
+La versión anterior guardaba toda la base como **un solo archivo en Netlify Blobs**: cada cambio (una marca, elegir un turno) descargaba, modificaba y volvía a subir el archivo completo, y cada instancia de la función lo hacía por su cuenta. Con varias personas a la vez —sobre todo el domingo de 9 a 10 p. m.— las peticiones se hacían esperar, vencía el tiempo de la función y Netlify respondía con error 5xx; además dos instancias podían pisarse los cambios. Ahora:
+
+- **PostgreSQL** atiende cientos de conexiones a la vez; cada cambio escribe solo sus filas, dentro de **transacciones con bloqueo de fila** (dos socias nunca se quedan con el mismo cupo ni se supera el máximo por semana).
+- Consultas **en lote** (sin N+1) e **índices** en todas las búsquedas por fecha, persona y turno; los reportes tienen un tope de un año por consulta.
+- Las tareas pesadas (multas automáticas) salieron de las peticiones y corren en la **función programada**.
+- La app **reintenta sola** las lecturas ante un corte breve de red o del servidor (y los cambios cuando el servidor avisa que no los procesó).
+- El límite de intentos por conexión cuenta **solo los fallidos**: muchas socias en la misma wifi o red móvil pueden ingresar a la vez.
+
+**Pruebas de carga** (PostgreSQL 16, 150 socias + 5 supervisores al mismo tiempo: ingreso, pantalla Hoy, horario, elegir turnos en la ventana, marcar entrada con GPS, multas; el panel consultando cada 0,5 s):
+
+| Escenario | Peticiones | Errores 5xx | p50 | p95 |
+|---|---|---|---|---|
+| Función de Netlify (1 instancia, 3 conexiones) | 10 761 en 11 s | **0** | 71 ms | 309 ms |
+| Servidor Node + PostgreSQL | 30 840 en 26 s | **0** | 106 ms | 163 ms |
+| Servidor Node + SQLite | 29 519 en 28 s | **0** | 89 ms | 147 ms |
+
+En todos los casos se llenaron exactamente los 210 cupos de la semana, nadie superó su máximo y se registraron 150/150 entradas. Con **5 años de historial simulado** (200 000 turnos, 400 000 marcas, 400 000 registros de auditoría ≈ 183 MB) las pantallas del panel responden en 5–230 ms y un reporte de un año completo en unos 3 s.
 
 ## Publicarlo en un servidor propio (obligatorio HTTPS)
 
@@ -126,7 +154,7 @@ Los navegadores **solo entregan el GPS en páginas HTTPS**. Opciones:
   ```
   Detrás de Nginx/Caddy/Cloudflare con HTTPS y `TRUST_PROXY=1`.
 
-La base es un solo archivo (`DB_PATH`). **Respáldala**: botón *Descargar respaldo* en Configuración, o `npm run respaldo` programado con cron (guarda los últimos 30).
+Con `DATABASE_URL` (PostgreSQL: Neon, Supabase, RDS, el de tu VPS…) el servidor usa PostgreSQL con un pool de conexiones (`DB_POOL_MAX`, 20 por defecto); es lo recomendado para muchas personas y varios años de datos. Sin `DATABASE_URL` usa SQLite: la base es un solo archivo (`DB_PATH`). **Respáldala**: botón *Descargar respaldo* en Configuración, o `npm run respaldo` programado con cron (guarda los últimos 30).
 
 Variables de entorno: ver `.env.example`.
 
@@ -160,7 +188,9 @@ src/
     tiempo.js  geo.js  asistencia.js  horarios.js  ajustes.js
   services/            reglas con base de datos: usuarios, tiendas, turnos, asistencia, multas, coberturas…
   routes/              auth.js · app.js (celular) · panel.js (supervisión)
-  db/                  SQLite (node:sqlite, WAL) + migraciones versionadas
+  db/                  motor.js: una interfaz asíncrona para PostgreSQL (pg / Neon / PGlite) y SQLite (node:sqlite, WAL)
+                       migrations/postgres y migrations/sqlite: migraciones versionadas
+  nube/                función de Netlify (API + tareas programadas) y migración automática desde Netlify Blobs
   lib/                 seguridad (scrypt, tokens), CSV, importador, datos demo
 public/
   index.html + js/colaborador/   app PWA del equipo (manifest, service worker, GPS, cola offline)
@@ -168,12 +198,13 @@ public/
 test/                  pruebas de dominio, de API (flujo completo) y de navegador (e2e)
 ```
 
-**Escalabilidad**: la lógica está separada en capas (dominio puro → servicios → rutas), el esquema es multi-tienda con migraciones versionadas y el acceso a datos está concentrado en `services/`, de modo que migrar a PostgreSQL o agregar un segundo negocio no obliga a reescribir la interfaz. SQLite en modo WAL soporta con holgura decenas de tiendas y cientos de colaboradoras en un solo servidor.
+**Escalabilidad**: la lógica está separada en capas (dominio puro → servicios → rutas) y todo el acceso a datos es asíncrono sobre un mismo motor que funciona con PostgreSQL o SQLite. En PostgreSQL las operaciones que compiten (elegir un cupo, marcar, generar la semana, migrar) usan transacciones con `SELECT … FOR UPDATE`, restricciones únicas y candados consultivos, así que varias instancias pueden atender a la vez sin pisarse. En SQLite las peticiones se atienden de a una sobre la misma conexión (WAL).
 
 ## Pruebas
 
 ```bash
-npm test          # dominio, API completa y función de Netlify (25 pruebas)
+npm test               # dominio, API completa y función de Netlify con PostgreSQL en memoria (PGlite)
+npm run test:postgres  # la API completa sobre PostgreSQL
 npm run e2e       # navegador real: marcar entrada/salida y recorrer el panel (requiere Chromium de Playwright)
 ```
 

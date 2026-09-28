@@ -24,12 +24,12 @@ export function leerFuenteAnterior(texto) {
  * Carga los datos en la base nueva. Crea la tienda, colaboradoras (con su mismo usuario y PIN),
  * turnos asignados, marcas GPS y multas. Es idempotente para colaboradoras (no duplica códigos).
  */
-export function importarAnterior(ctx, datos, quien = null) {
+export async function importarAnterior(ctx, datos, quien = null) {
   const { db } = ctx;
   const c = datos['config/principal'];
   if (!c) throw new Error('Faltan datos de configuración.');
   const res = { tienda: null, colaboradoras: 0, turnos: 0, marcas: 0, multas: 0, omitidos: 0 };
-  transaccion(db, () => {
+  await transaccion(db, async () => {
     // Reglas del negocio
     const aj = {
       toleranciaMin: Number(c.toleranciaMin ?? AJUSTES_POR_DEFECTO.toleranciaMin),
@@ -40,30 +40,30 @@ export function importarAnterior(ctx, datos, quien = null) {
       multas: { tardanza: Number(c.multas?.tardanza ?? 5), falta: Number(c.multas?.falta ?? 20), salidaAnticipada: 0 },
       recordatorioHoras: Number(c.recordatorioHoras ?? 2),
     };
-    ctx.s.empresa.actualizar({ nombre: c.empresa || 'Nube.chic', zona_horaria: c.zonaHoraria || 'America/Lima', ajustes: aj });
+    await ctx.s.empresa.actualizar({ nombre: c.empresa || 'Nube.chic', zona_horaria: c.zonaHoraria || 'America/Lima', ajustes: aj });
 
     // Tienda
     const l = c.local || c.locales?.[0];
-    let tienda = db.prepare('SELECT * FROM tiendas WHERE codigo = ?').get(l?.id || 'L1');
-    if (!tienda && l) tienda = ctx.s.tiendas.crear({ codigo: l.id || 'L1', nombre: l.nombre, lat: l.lat, lng: l.lng, radio_m: l.radioM || 80 });
-    else if (tienda) tienda = ctx.s.tiendas.actualizar(tienda.id, { nombre: l.nombre, lat: l.lat, lng: l.lng, radio_m: l.radioM || tienda.radio_m });
+    let tienda = await db.prepare('SELECT * FROM tiendas WHERE UPPER(codigo) = ?').get(String(l?.id || 'L1').toUpperCase());
+    if (!tienda && l) tienda = await ctx.s.tiendas.crear({ codigo: l.id || 'L1', nombre: l.nombre, lat: l.lat, lng: l.lng, radio_m: l.radioM || 80 });
+    else if (tienda) tienda = await ctx.s.tiendas.actualizar(tienda.id, { nombre: l.nombre, lat: l.lat, lng: l.lng, radio_m: l.radioM || tienda.radio_m });
     res.tienda = tienda?.nombre;
 
     // Plantilla semanal
-    if (tienda && c.turnos && !ctx.s.tiendas.plantillas(tienda.id).length) {
+    if (tienda && c.turnos && !(await ctx.s.tiendas.plantillas(tienda.id)).length) {
       const lista = [];
       for (const [dia, ts] of Object.entries(c.turnos)) for (const t of ts || []) lista.push({ dia: Number(dia), inicio: t.inicio, fin: t.fin, cupos: 1 });
-      ctx.s.tiendas.guardarPlantillas(tienda.id, lista);
+      await ctx.s.tiendas.guardarPlantillas(tienda.id, lista);
     }
 
     // Colaboradoras (mismo usuario y PIN que ya conocen)
     const idDe = new Map();
     for (const s of c.socios || []) {
-      let u = ctx.s.usuarios.porCodigo(s.id);
+      let u = await ctx.s.usuarios.porCodigo(s.id);
       if (!u) {
-        db.prepare("INSERT INTO usuarios (codigo, nombre, telefono, rol, secreto, tienda_id, creado) VALUES (?, ?, ?, 'colaborador', ?, ?, ?)")
-          .run(String(s.id).toUpperCase(), String(s.nombre).trim(), String(s.telefono || '').replace(/\D/g, ''), hashSecreto(String(s.pin)), tienda?.id ?? null, ctx.reloj.ms());
-        u = ctx.s.usuarios.porCodigo(s.id);
+        await db.prepare("INSERT INTO usuarios (codigo, nombre, telefono, rol, secreto, tienda_id, creado) VALUES (?, ?, ?, 'colaborador', ?, ?, ?)")
+          .run(String(s.id).toUpperCase(), String(s.nombre).trim(), String(s.telefono || '').replace(/\D/g, ''), await hashSecreto(String(s.pin)), tienda?.id ?? null, ctx.reloj.ms());
+        u = await ctx.s.usuarios.porCodigo(s.id);
         res.colaboradoras++;
       }
       idDe.set(s.id, u.id);
@@ -75,19 +75,19 @@ export function importarAnterior(ctx, datos, quien = null) {
     const fechas = [];
     for (const [k, v] of Object.entries(datos)) if (k.startsWith('semanas/')) for (const f of Object.keys(v?.dias || {})) fechas.push(f);
     fechas.sort();
-    if (fechas.length) ctx.s.turnos.asegurarRango(fechas[0], fechas[fechas.length - 1]);
+    if (fechas.length) await ctx.s.turnos.asegurarRango(fechas[0], fechas[fechas.length - 1]);
     for (const [k, v] of Object.entries(datos)) {
       if (!k.startsWith('semanas/')) continue;
       for (const [f, ts] of Object.entries(v?.dias || {})) {
         for (const [tid, a] of Object.entries(ts || {})) {
           if (!a?.sid || !idDe.has(a.sid)) continue;
-          let t = db.prepare('SELECT * FROM turnos WHERE tienda_id = ? AND fecha = ? AND inicio = ? AND fin = ? AND (usuario_id IS NULL OR usuario_id = ?) ORDER BY usuario_id IS NULL LIMIT 1')
+          let t = await db.prepare('SELECT * FROM turnos WHERE tienda_id = ? AND fecha = ? AND inicio = ? AND fin = ? AND (usuario_id IS NULL OR usuario_id = ?) ORDER BY CASE WHEN usuario_id IS NULL THEN 1 ELSE 0 END LIMIT 1')
             .get(tienda.id, f, a.inicio, a.fin, idDe.get(a.sid));
           if (!t) {
-            const r = db.prepare("INSERT INTO turnos (tienda_id, fecha, inicio, fin, puesto, origen) VALUES (?, ?, ?, ?, 1, 'manual')").run(tienda.id, f, a.inicio, a.fin);
-            t = { id: Number(r.lastInsertRowid) };
+            const r = await db.prepare("INSERT INTO turnos (tienda_id, fecha, inicio, fin, puesto, origen) VALUES (?, ?, ?, ?, 1, 'manual')").run(tienda.id, f, a.inicio, a.fin);
+            t = { id: r.lastInsertRowid };
           }
-          db.prepare('UPDATE turnos SET usuario_id = ?, asignado_por = ?, asignado_en = ?, ejemplo = ? WHERE id = ?')
+          await db.prepare('UPDATE turnos SET usuario_id = ?, asignado_por = ?, asignado_en = ?, ejemplo = ? WHERE id = ?')
             .run(idDe.get(a.sid), a.por === 'socio' ? 'colaborador' : 'supervisor', a.en || ctx.reloj.ms(), a.ejemplo ? 1 : 0, t.id);
           turnoDe.set(`${f}|${tid}|${a.sid}`, t.id);
           turnoDe.set(`${f}|${a.sid}`, t.id);
@@ -103,10 +103,10 @@ export function importarAnterior(ctx, datos, quien = null) {
       if (!k.startsWith('marcas/') || !idDe.has(m?.socioId)) continue;
       let tId = turnoDe.get(`${m.fecha}|${m.socioId}`);
       if (!tId) { // cubrió un turno ajeno: se enlaza al primer turno del día
-        tId = db.prepare('SELECT id FROM turnos WHERE tienda_id = ? AND fecha = ? ORDER BY inicio LIMIT 1').get(tienda.id, m.fecha)?.id;
+        tId = (await db.prepare('SELECT id FROM turnos WHERE tienda_id = ? AND fecha = ? ORDER BY inicio LIMIT 1').get(tienda.id, m.fecha))?.id;
       }
       if (!tId) { res.omitidos++; continue; }
-      insM.run(idDe.get(m.socioId), tId, tienda.id, m.tipo, m.fecha, m.hora.length === 5 ? m.hora + ':00' : m.hora, m.creado || ctx.reloj.ms(),
+      await insM.run(idDe.get(m.socioId), tId, tienda.id, m.tipo, m.fecha, m.hora.length === 5 ? m.hora + ':00' : m.hora, m.creado || ctx.reloj.ms(),
         m.lat, m.lng, m.precision, m.distancia, ['dentro', 'fuera', 'imprecisa'].includes(m.estado) ? m.estado : 'imprecisa',
         JSON.stringify(m.observacion ? [m.observacion] : []), m.simulado ? 1 : 0, m.ejemplo ? 1 : 0);
       res.marcas++;
@@ -116,7 +116,7 @@ export function importarAnterior(ctx, datos, quien = null) {
     for (const [k, m] of Object.entries(datos)) {
       if (!k.startsWith('multas/') || !idDe.has(m?.socioId)) continue;
       const tId = turnoDe.get(`${m.fecha}|${m.turnoId}|${m.socioId}`) ?? turnoDe.get(`${m.fecha}|${m.socioId}`) ?? null;
-      const r = db.prepare(`INSERT INTO multas (usuario_id, turno_id, fecha, tipo, monto, detalle, estado, creada, notificada, vista, pagada, ejemplo)
+      const r = await db.prepare(`INSERT INTO multas (usuario_id, turno_id, fecha, tipo, monto, detalle, estado, creada, notificada, vista, pagada, ejemplo)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`).run(
         idDe.get(m.socioId), tId, m.fecha, m.tipo === 'falta' ? 'falta' : 'tardanza', Number(m.monto || 0), m.detalle || '',
         ['pendiente', 'pagada', 'anulada'].includes(m.estado) ? m.estado : 'pendiente', m.creada || ctx.reloj.ms(),
@@ -125,7 +125,7 @@ export function importarAnterior(ctx, datos, quien = null) {
       res.multas += r.changes;
     }
   });
-  ctx.s.auditoria.registrar(quien, 'importacion_version_anterior', null, null, res);
+  await ctx.s.auditoria.registrar(quien, 'importacion_version_anterior', null, null, res);
   ctx.bus.emit('cambio', { tipo: 'todo' });
   return res;
 }

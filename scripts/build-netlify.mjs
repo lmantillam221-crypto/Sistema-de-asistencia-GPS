@@ -1,6 +1,6 @@
 /* Prepara el sitio para Netlify:
    dist/netlify/sitio      → archivos públicos (app del equipo, panel, lógica compartida y Leaflet)
-   dist/netlify/funciones  → función "api" ya empaquetada (incluye sql.js y la lógica del sistema)
+   dist/netlify/funciones  → funciones "api" y "tareas" ya empaquetadas (PostgreSQL + lógica del sistema)
    Marca: variable MARCA (nube-chic por defecto, mundo-nuvana…).
    Uso: npm run build:netlify  (Netlify lo ejecuta solo según netlify.toml) */
 import fs from 'node:fs';
@@ -26,8 +26,8 @@ for (const f of ['tiempo.js', 'geo.js', 'asistencia.js', 'horarios.js']) fs.copy
 fs.cpSync(path.dirname(require.resolve('leaflet/dist/leaflet.js')), path.join(SITIO, 'vendor/leaflet'), { recursive: true });
 
 // 2. Función (un solo archivo con todo lo necesario)
-await empaquetarFuncion(path.join(RAIZ, 'netlify/functions/api.mjs'), path.join(DIST, 'funciones/api.mjs'), marca.id);
-console.log(`✔ Listo para Netlify (${marca.nombre}): dist/netlify/sitio + dist/netlify/funciones/api.mjs`);
+for (const f of ['api', 'tareas']) await empaquetarFuncion(path.join(RAIZ, `netlify/functions/${f}.mjs`), path.join(DIST, `funciones/${f}.mjs`), marca.id);
+console.log(`✔ Listo para Netlify (${marca.nombre}): dist/netlify/sitio + dist/netlify/funciones/{api,tareas}.mjs`);
 
 export async function empaquetarFuncion(entrada, salida, marcaId = 'nube-chic') {
   await build({

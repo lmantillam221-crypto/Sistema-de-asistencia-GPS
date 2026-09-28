@@ -48,14 +48,15 @@ export function despachar(api, alFallar, { method, url, headers = {}, body = {},
   };
   return new Promise((ok) => {
     const res = {
-      statusCode: 200, h: { 'content-type': 'application/json; charset=utf-8' }, cookies: [],
+      statusCode: 200, h: { 'content-type': 'application/json; charset=utf-8' }, cookies: [], oyentes: [],
+      on(ev, f) { if (ev === 'finish' || ev === 'close') this.oyentes.push(f); return this; },
       status(c) { this.statusCode = c; return this; },
       setHeader(k, v) { this.h[k.toLowerCase()] = String(v); return this; },
       set(k, v) { return this.setHeader(k, v); },
       append(k, v) { if (k.toLowerCase() === 'set-cookie') this.cookies.push(v); else this.setHeader(k, v); return this; },
       type(t) { this.h['content-type'] = t; return this; },
       json(o) { this.h['content-type'] = 'application/json; charset=utf-8'; this.send(JSON.stringify(o)); },
-      send(b) { ok({ status: this.statusCode, headers: this.h, cookies: this.cookies, body: b }); },
+      send(b) { ok({ status: this.statusCode, headers: this.h, cookies: this.cookies, body: b }); for (const f of this.oyentes.splice(0)) f(); },
       end(b) { this.send(b ?? ''); },
       download() { this.status(501).json({ error: 'Descarga no disponible aquí.' }); },
       writeHead() { return this; }, write() {},

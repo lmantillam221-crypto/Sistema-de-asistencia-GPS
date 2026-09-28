@@ -7,13 +7,13 @@ import { abrirDB } from '../src/db/abrir.js';
 const [codigo, password, nombre = 'Administración'] = process.argv.slice(2);
 if (!codigo || !password) { console.error('Uso: npm run crear-admin -- <usuario> <contraseña> ["Nombre"]'); process.exit(1); }
 const cfg = { ...leerConfig(), admin: { codigo, password, nombre } };
-const ctx = crearContexto(cfg, { db: abrirDB(cfg.dbPath) });
-const u = ctx.s.usuarios.porCodigo(codigo);
+const ctx = await crearContexto(cfg, { db: await abrirDB(cfg.dbPath) });
+const u = await ctx.s.usuarios.porCodigo(codigo);
 if (u) {
-  ctx.s.usuarios.cambiarSecreto(u.id, password);
-  ctx.db.prepare("UPDATE usuarios SET rol = 'admin', activo = 1 WHERE id = ?").run(u.id);
+  await ctx.s.usuarios.cambiarSecreto(u.id, password);
+  await ctx.db.prepare("UPDATE usuarios SET rol = 'admin', activo = 1 WHERE id = ?").run(u.id);
   console.log(`✔ Contraseña de ${codigo} actualizada (rol administrador).`);
 } else {
-  ctx.s.usuarios.crear({ codigo, nombre, rol: 'admin', secreto: password });
+  await ctx.s.usuarios.crear({ codigo, nombre, rol: 'admin', secreto: password });
   console.log(`✔ Administrador ${codigo} creado.`);
 }

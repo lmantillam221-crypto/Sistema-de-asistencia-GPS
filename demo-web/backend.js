@@ -5,17 +5,23 @@
    ===================================================================== */
 import initSqlJs from 'sql.js/dist/sql-asm.js';
 import { setSQL, DatabaseSync } from './shims/sqlite.js';
+import { motorSqlite } from '../src/db/motor.js';
 import { migrar } from '../src/db/index.js';
 import { leerConfig } from '../src/config.js';
 import { crearContexto } from '../src/services/index.js';
 import { rutasAuth } from '../src/routes/auth.js';
 import { rutasApp } from '../src/routes/app.js';
 import { rutasPanel } from '../src/routes/panel.js';
-import { manejarErrores, soloJson } from '../src/middleware.js';
-import { Router } from './shims/express.js';
+import { manejarErrores, soloJson, porPeticion } from '../src/middleware.js';
+import { Router, despachar } from '../src/lib/enrutador.js';
+import { ejecutarTareas } from '../src/jobs.js';
 import { EventEmitter } from './shims/events.js';
 import { asegurarBaseDemo, generarEjemplo } from '../src/lib/demo.js';
 import { partes, instante } from '../src/domain/tiempo.js';
+import sq001 from '../src/db/migrations/sqlite/001_inicial.sql';
+import sq002 from '../src/db/migrations/sqlite/002_indices.sql';
+
+const MIGRACIONES = [{ nombre: '001_inicial.sql', sql: sq001 }, { nombre: '002_indices.sql', sql: sq002 }];
 
 // setInterval(...).unref() existe en Node; en el navegador no hace falta.
 // eslint-disable-next-line no-extend-native
@@ -28,19 +34,19 @@ const aB64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s
 const deB64 = (t) => Uint8Array.from(atob(t), (c) => c.charCodeAt(0));
 
 export const bus = new EventEmitter();
-let ctx = null, api = null;
+let ctx = null, api = null, crudo = null;
 
-function persistir() { if (ctx) LSs(K.db, aB64(ctx.db.exportar())); }
+function persistir() { if (crudo) LSs(K.db, aB64(crudo.exportar())); }
 
 export const listo = (async () => {
   setSQL(await initSqlJs());
   const guardada = LSg(K.db);
-  let db;
-  try { db = new DatabaseSync(guardada ? deB64(guardada) : null); } catch { db = new DatabaseSync(null); }
-  db.exec('PRAGMA foreign_keys = ON');
-  migrar(db);
+  try { crudo = new DatabaseSync(guardada ? deB64(guardada) : null); } catch { crudo = new DatabaseSync(null); }
+  crudo.exec('PRAGMA foreign_keys = ON');
+  const db = motorSqlite(crudo);
+  await migrar(db, MIGRACIONES);
   const cfg = { ...leerConfig(process.env), dbPath: ':memory:', demo: true, produccion: false, admin: { codigo: 'admin', password: 'admin12345', nombre: 'Administración' } };
-  ctx = crearContexto(cfg, { db });
+  ctx = await crearContexto(cfg, { db });
 
   // Reloj de demostración que sobrevive a recargas
   const r = ctx.reloj;
@@ -51,21 +57,22 @@ export const listo = (async () => {
   r.simular = (f, h) => { sim = f ? { base: instante(f, h, r.tz), real: Date.now() } : null; LSs(K.reloj, JSON.stringify(sim)); };
   Object.defineProperty(r, 'simulado', { get: () => !!sim, configurable: true });
 
-  if (!guardada) { asegurarBaseDemo(ctx); generarEjemplo(ctx); }
-  ctx.s.multas.sincronizar();
+  if (!guardada) { await asegurarBaseDemo(ctx); await generarEjemplo(ctx); }
+  await ejecutarTareas(ctx);
   persistir();
   ctx.bus.on('cambio', (e) => bus.emit('cambio', e));
 
   api = Router();
   api.use(soloJson);
+  api.use(porPeticion(ctx));
   api.use(rutasAuth(ctx));
   api.use('/app', rutasApp(ctx));
   api.use('/panel', rutasPanel(ctx));
 
-  setInterval(() => {
-    const c0 = ctx.db.cambiosTotales();
-    try { ctx.s.multas.sincronizar(); ctx.s.coberturas.vencer(); } catch (e) { console.error(e); }
-    if (ctx.db.cambiosTotales() !== c0) persistir();
+  setInterval(async () => {
+    const c0 = crudo.cambiosTotales();
+    try { await ejecutarTareas(ctx); } catch (e) { console.error(e); }
+    if (crudo.cambiosTotales() !== c0) persistir();
     bus.emit('cambio', { tipo: 'minuto' });
   }, 60000);
 })();
@@ -82,37 +89,12 @@ function ponerCookie(linea) {
 /* ---------------- atención de peticiones ---------------- */
 async function atender(metodo, url, cabeceras, cuerpo) {
   await listo;
-  const u = new URL(url, 'http://demo');
-  const req = {
-    method: metodo, path: u.pathname.replace(/^\/api/, '') || '/', originalUrl: u.pathname, ip: 'demo', secure: true,
-    query: Object.fromEntries(u.searchParams), params: {}, body: cuerpo,
-    headers: { cookie: Object.entries(jar).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('; '), 'user-agent': navigator.userAgent, 'content-type': cabeceras['content-type'] || '' },
-    get(h) { return this.headers[String(h).toLowerCase()]; },
-    is(t) { return (this.headers['content-type'] || '').includes(t.split('/').pop()); },
-    on() {},
-  };
-  return new Promise((ok) => {
-    const res = {
-      statusCode: 200, h: { 'content-type': 'application/json' },
-      status(c) { this.statusCode = c; return this; },
-      setHeader(k, v) { this.h[k.toLowerCase()] = v; return this; },
-      set(k, v) { return this.setHeader(k, v); },
-      append(k, v) { if (k.toLowerCase() === 'set-cookie') ponerCookie(v); return this; },
-      type(t) { this.h['content-type'] = t; return this; },
-      json(o) { this.h['content-type'] = 'application/json'; this.send(JSON.stringify(o)); },
-      send(b) { ok(new Response(b, { status: this.statusCode, headers: this.h })); },
-      download() { this.status(501).json({ error: 'La descarga del respaldo está disponible en el sistema instalado.' }); },
-      writeHead() { return this; }, write() {}, end(b) { this.send(b ?? ''); },
-    };
-    const c0 = ctx.db.cambiosTotales();
-    const fin = (err) => {
-      if (err) return manejarErrores(ctx)(err, req, res, () => {});
-      res.status(404).json({ error: 'Ruta no encontrada.' });
-    };
-    const enviar = res.send.bind(res);
-    res.send = (b) => { try { if (ctx.db.cambiosTotales() !== c0) persistir(); } catch {} enviar(b); };
-    try { api(req, res, fin); } catch (e) { fin(e); }
-  });
+  const headers = { cookie: Object.entries(jar).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('; '), 'user-agent': navigator.userAgent, 'content-type': cabeceras['content-type'] || '' };
+  const c0 = crudo.cambiosTotales();
+  const r = await despachar(api, manejarErrores(ctx), { method: metodo, url, headers, body: cuerpo, ip: 'demo' });
+  for (const c of r.cookies) ponerCookie(c);
+  try { if (crudo.cambiosTotales() !== c0) persistir(); } catch {}
+  return new Response(r.body ?? '', { status: r.status, headers: r.headers });
 }
 
 const fetchOriginal = window.fetch.bind(window);
