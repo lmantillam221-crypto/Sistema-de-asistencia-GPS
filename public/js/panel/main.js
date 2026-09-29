@@ -33,6 +33,7 @@ export const P = {
   ir(id) { P.seccion = id; LS.set('nc_seccion', id); document.body.classList.remove('menu-abierto'); window.scrollTo({ top: 0 }); P.refrescar(); },
   esAdmin: () => P.yo?.rol === 'admin',
 };
+let ultimaPintada = null; // para animar la entrada solo al cambiar de sección
 const seccionActual = () => SECCIONES.find((s) => s.id === P.seccion && (!s.soloAdmin || P.esAdmin())) || hoy;
 
 function pintar() {
@@ -59,8 +60,9 @@ function pintar() {
         <div class="der"><span class="vivo ${P.vivo ? 'on' : ''}" title="Actualización en tiempo real"><i></i>${P.vivo ? 'En vivo' : 'Sin conexión'}</span>
           ${a ? `<span class="reloj-p">${cap(fLarga(a.fecha))} · ${a.hora}${P.relojSimulado ? ' <span class="chip warn">simulado</span>' : ''}</span>` : ''}
           ${P.cargando ? '<span class="spinner"></span>' : ''}</div></header>
-      <main class="p-cont" id="contenido">${P.yo.debeCambiar ? '<div class="msg warn"><b>Por seguridad, cambia tu contraseña inicial.</b> <button type="button" class="btn-link" data-accion-global="miClave">Cambiar ahora</button></div>' : ''}${cuerpo}</main>
+      <main class="p-cont${datos !== undefined && ultimaPintada !== s.id ? ' entra' : ''}" id="contenido">${P.yo.debeCambiar ? '<div class="msg warn"><b>Por seguridad, cambia tu contraseña inicial.</b> <button type="button" class="btn-link" data-accion-global="miClave">Cambiar ahora</button></div>' : ''}${cuerpo}</main>
     </div></div>`);
+  if (datos !== undefined) ultimaPintada = s.id;
   s.alPintar?.(datos, P);
 }
 

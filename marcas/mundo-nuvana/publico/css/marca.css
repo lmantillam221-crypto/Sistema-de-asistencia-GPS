@@ -1,50 +1,8 @@
-/* =====================================================================
-   Marca: Mundo Nuvana
-   Paleta del logo: azul petróleo #3387A2 · celeste #C0DEF0 · tinta profunda #14323F
-   Tipografía: Cormorant Garamond (títulos, eco de la "MN" serif del logo) + Manrope (textos y cifras)
-   ===================================================================== */
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
-
+/* Marca: Mundo Nuvana. Color de acento: azul petróleo del logo #3387A2 (celeste #C0DEF0 de apoyo).
+   Tipografía: SF Pro en iPhone/Mac e Inter en los demás equipos (clara y elegante). */
+@import url("https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&display=swap");
 :root {
-  --bg: #f6fafc; --surface: #ffffff; --surface-2: #eef6fa; --line: #d8e7ef; --line-2: #c6dbe6;
-  --ink: #14323f; --muted: #557383; --faint: #8ea8b5;
-  --brand: #3387a2; --brand-2: #2b7893; --brand-strong: #1f6480; --brand-soft: #dcedf6; --brand-softer: #f0f7fb;
-  --berry: #14323f; --berry-2: #245a6e; --berry-ink: #e5f2f8;
-  --grey-bg: #e9f0f4; --grey-ink: #4d6674; --info: #3387a2; --info-bg: #e0eff7; --info-ink: #1f6480;
-  --sheen: linear-gradient(180deg, #ffffff 0%, #fafdfe 100%);
-  --shadow: 0 1px 0 rgba(255,255,255,.95) inset, 0 16px 36px -26px rgba(20,50,63,.4);
-  --shadow-lg: 0 32px 64px -32px rgba(20,50,63,.5);
-  --glow: 0 12px 28px -14px rgba(51,135,162,.65);
-  --grad: linear-gradient(135deg, #4ea6c4 0%, #2a7590 100%);
-  --radius: 16px;
-  --font: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-display: "Cormorant Garamond", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-  --font-num: "Manrope", system-ui, sans-serif;
-  --display-weight: 600;
-  --bg-glow-1: #dcedf7; --bg-glow-2: #edf6fa; --glass: rgba(246,250,252,.88); --overlay: rgba(20,50,63,.45);
-  --focus: rgba(51,135,162,.4); --btn-shadow-text: 0 1px 0 rgba(15,55,72,.3); --pulse: rgba(51,135,162,.18);
-  --rail: linear-gradient(180deg,#9fd0e4,#3387a2); --rail-glow: rgba(51,135,162,.5); --rail-2: linear-gradient(180deg,#78a9bb,#14323f); --rail-2-glow: rgba(20,50,63,.4);
-  --fill: linear-gradient(90deg,#c0def0,#3387a2); --fill-glow: rgba(51,135,162,.4); --fill-2: linear-gradient(90deg,#a9c9d6,#245a6e);
-  --hero-grad: linear-gradient(160deg,#ffffff 0%,#edf6fa 100%); --mine-grad: linear-gradient(135deg,#e4f1f8,#cfe5f1); --soft-grad: linear-gradient(160deg,#f0f7fb,#dcedf6);
-  --tab-shadow: rgba(31,100,128,.5); --ring: rgba(51,135,162,.24);
-  --side-grad: linear-gradient(175deg,#1f4c5f 0%,#14323f 55%,#0e2731 100%); --side-shadow: rgba(14,39,49,.9);
-  --side-muted: #8fbfd2; --side-ink: #d3e9f2; --side-foot: #a6cad9; --side-line: rgba(192,222,240,.3); --side-btn-ink: #e5f2f8;
-  --chart-grid: #dde9f0; --chart-text: #557383; --chart-bar: #3387a2; --chart-bar-2: #14323f; --chart-empty: #d8e7ef;
-  --mapa-borde: #2b7893; --mapa-relleno: #7fbfd8; --mapa-centro: #1f6480;
+  --brand: #7fbfd8; --brand-2: #2b7893; --brand-strong: #1f6480; --brand-soft: #dff0f8; --brand-softer: #f2f9fc;
+  --grad: linear-gradient(180deg, #3b91ad 0%, #2a7590 100%);
+  --ring: rgba(51,135,162,.26); --focus: rgba(51,135,162,.45);
 }
-
-/* Ajustes tipográficos para la serif de títulos */
-h1, h2, h3 { letter-spacing: 0; }
-h1 { font-size: 1.75rem; line-height: 1.15; }
-h2 { font-size: 1.32rem; line-height: 1.2; }
-h3 { font-size: 1.15rem; }
-.p-top h1 { font-size: 1.6rem; }
-.hero .quien { font-size: 1.75rem; letter-spacing: 0; }
-.saludo h1 { font-size: 1.85rem; }
-.btn-big { font-family: var(--font); font-weight: 700; letter-spacing: .02em; }
-.eyebrow { letter-spacing: .14em; }
-.kpi b, .turno-hero .horario, .deuda .monto { letter-spacing: -.02em; }
-aside.lateral .marca span { color: var(--brand-strong); letter-spacing: .16em; }
-.login-m img.logo { width: min(300px, 80%); }
-.login-p img { width: min(280px, 76%); }
-aside.lateral .marca img { max-width: 190px; }

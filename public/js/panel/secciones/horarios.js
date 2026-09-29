@@ -24,7 +24,6 @@ export default {
       <a class="btn btn-wa" target="_blank" rel="noopener" href="${waLink('', aviso)}">Avisar al grupo</a></div>`;
 
     const esp = new Map(d.especiales.map((e) => [e.fecha + '|' + (e.tienda_id ?? ''), e]));
-    const opciones = (sel) => `<option value="">— Libre —</option>${d.colaboradores.map((u) => `<option value="${u.id}" ${u.id === sel ? 'selected' : ''} title="${esc(nombreBonito(u.nombre))}">${esc(corto(u.nombre))}</option>`).join('')}`;
     const variasTiendas = d.tiendas.length > 1 && !ui.tienda;
     let libres = 0;
     const dias = [];
@@ -35,11 +34,22 @@ export default {
       dias.push(`<div class="dia ${f === hoy ? 'hoy' : ''} ${e ? 'especial' : ''}"><div class="row between"><div><div class="d">${DIAS_C[diaDe(f)]}${f === hoy ? ' · hoy' : ''}</div><div class="fe">${f.slice(8)}/${f.slice(5, 7)}</div></div>
           <button type="button" class="btn-sm btn-ghost" data-accion="extra" data-fecha="${f}" title="Agregar turno extra" aria-label="Agregar turno extra el ${fCorta(f)}">＋</button></div>
         ${e ? `<span class="chip warn" title="${esc(e.motivo)}">${e.cerrado ? 'Cerrado' : 'Horario especial'}${e.motivo ? ' · ' + esc(e.motivo) : ''}</span>` : ''}
-        ${ts.length ? ts.map((t) => `<div class="turno ${t.usuario_id ? '' : 'libre'} ${t.origen === 'manual' ? 'extra' : ''}"><span class="h"><span>${t.inicio}–${t.fin}${variasTiendas ? ` · ${esc(nombreBonito(t.tienda_nombre))}` : ''}</span>${t.origen === 'manual' ? `<button type="button" class="btn-sm btn-ghost btn-bad" style="padding:0 4px" data-accion="borrarTurno" data-id="${t.id}" aria-label="Eliminar turno extra">✕</button>` : ''}</span>
-          <select id="asig-${t.id}" data-asignar="${t.id}" data-fijo="1" aria-label="Asignar turno ${fCorta(f)} ${t.inicio}">${opciones(t.usuario_id)}</select>
-          ${t.usuario_id ? `<span class="tiny muted">${{ colaborador: 'Lo eligió', supervisor: 'Asignado', cobertura: 'Por cobertura' }[t.asignado_por] || 'Asignado'}</span>` : ''}</div>`).join('') : '<span class="tiny muted">Sin turnos</span>'}</div>`);
+        ${ts.length ? ts.map((t) => `<div class="turno ${t.usuario_id ? '' : 'libre'} ${t.origen === 'manual' ? 'extra' : ''}">
+          <button type="button" class="x" data-accion="borrarTurno" data-id="${t.id}" aria-label="Eliminar turno ${fCorta(f)} ${t.inicio}" title="Eliminar turno">✕</button>
+          <button type="button" class="cuerpo-turno" data-accion="editarTurno" data-id="${t.id}" aria-label="Modificar turno ${fCorta(f)} ${t.inicio}">
+            <span class="h">${t.inicio}–${t.fin}</span>
+            ${variasTiendas ? `<span class="tiny muted">${esc(nombreBonito(t.tienda_nombre))}</span>` : ''}
+            <span class="quien">${t.usuario_id ? esc(corto(t.usuario_nombre)) : 'Libre'}</span>
+            <span class="tiny muted">${t.usuario_id ? ({ colaborador: 'Lo eligió', supervisor: 'Asignado', cobertura: 'Por cobertura' }[t.asignado_por] || 'Asignado') : 'Toca para asignar'}${t.bloque_inicio ? ` · bloque ${t.bloque_inicio}–${t.bloque_fin}` : ''}</span>
+          </button></div>`).join('') : '<span class="tiny muted">Sin turnos</span>'}</div>`);
     }
     const sinTurno = d.colaboradores.filter((u) => !d.turnos.some((t) => t.usuario_id === u.id));
+    const aj = P.ajustes || {};
+    const horasDe = (uid) => d.turnos.filter((t) => t.usuario_id === uid).reduce((s, t) => s + (aMin(t.fin) - aMin(t.inicio)) / 60, 0);
+    const resumenHoras = aj.horasMinSemana || aj.horasMaxSemana ? `<div class="horas-semana">${d.colaboradores.map((u) => {
+      const h = horasDe(u.id), bajo = aj.horasMinSemana && h < aj.horasMinSemana, alto = aj.horasMaxSemana && h > aj.horasMaxSemana;
+      return `<span class="chip ${bajo || alto ? 'warn' : 'ok'}" title="${bajo ? 'Debajo del mínimo' : alto ? 'Sobre el máximo' : 'Dentro del rango'}">${esc(corto(u.nombre))} · ${fmtH(h)} h</span>`;
+    }).join('')}</div><div class="tiny muted">Horas de la semana por persona${aj.horasMinSemana ? ` · mínimo ${fmtH(aj.horasMinSemana)} h` : ''}${aj.horasMaxSemana ? ` · máximo ${fmtH(aj.horasMaxSemana)} h` : ''}</div>` : '';
     const semana = `<div class="card"><div class="row between"><div class="row"><button type="button" data-accion="semana" data-v="${sumarDias(lunes, -7)}" aria-label="Semana anterior">‹</button>
         <div><div class="eyebrow">${etiqueta}</div><h2>${fCorta(lunes)} al ${fCorta(sumarDias(lunes, 6))}</h2></div><button type="button" data-accion="semana" data-v="${sumarDias(lunes, 7)}" aria-label="Semana siguiente">›</button>
         ${lunes !== esta ? `<button type="button" class="btn-sm" data-accion="semana" data-v="${esta}">Semana actual</button>` : ''}${lunes !== sumarDias(esta, 7) ? `<button type="button" class="btn-sm" data-accion="semana" data-v="${sumarDias(esta, 7)}">Siguiente</button>` : ''}</div>
@@ -47,14 +57,20 @@ export default {
         <a class="btn btn-wa" target="_blank" rel="noopener" href="${waLink('', d.texto)}">Compartir horario</a></div></div>
       <div class="dias">${dias.join('')}</div>
       <div class="row">${libres ? `<span class="chip warn">${libres} turno${libres > 1 ? 's' : ''} sin cubrir</span>` : '<span class="chip ok">Todos los turnos cubiertos</span>'}
-        ${sinTurno.length ? `<span class="small muted">Sin turno esta semana: ${sinTurno.map((u) => esc(nombreBonito(u.nombre))).join(', ')}</span>` : ''}</div></div>`;
+        ${sinTurno.length ? `<span class="small muted">Sin turno esta semana: ${sinTurno.map((u) => esc(nombreBonito(u.nombre))).join(', ')}</span>` : ''}</div>${resumenHoras}
+      <div class="tiny muted">Toca un turno para cambiar su horario o la persona; la ✕ lo elimina. Los días que modificas a mano ya no los cambia la plantilla.</div></div>`;
     return `${ventana}${semana}${plantillaHtml(d.pl, P)}${especialesHtml(d.pl, P)}`;
   },
   async accion(a, el, P) {
     const ds = el.dataset;
     if (a === 'semana') { ui.lunes = ds.v; return P.refrescar(); }
     if (a === 'extra') return turnoExtra(ds.fecha, P);
-    if (a === 'borrarTurno') { if (!(await confirmar({ titulo: '¿Eliminar este turno extra?', si: 'Eliminar', peligro: true }))) return; await P.api.del(`/panel/turnos/${ds.id}`); toast('Turno eliminado.'); return P.refrescar(); }
+    if (a === 'borrarTurno') {
+      const t = P.datos.horarios.turnos.find((x) => x.id === Number(ds.id));
+      if (!(await confirmar({ titulo: '¿Eliminar este turno?', texto: t ? `${cap(fLarga(t.fecha))}, ${t.inicio}–${t.fin}${t.usuario_id ? ` (${nombreBonito(t.usuario_nombre)})` : ''}. La plantilla no lo volverá a crear.` : '', si: 'Eliminar', peligro: true }))) return;
+      await P.api.del(`/panel/turnos/${ds.id}`); toast('Turno eliminado.'); return P.refrescar({ silencioso: true });
+    }
+    if (a === 'editarTurno') return editarTurno(Number(ds.id), P);
     // plantilla
     const pl = () => (ui.plantilla ||= P.datos.horarios.pl.plantillas.filter((x) => x.tienda_id === ui.tiendaPl).map((x) => ({ dia: x.dia, inicio: x.inicio, fin: x.fin, cupos: x.cupos })));
     if (a === 'plAgregar') { pl().push({ dia: Number(ds.dia), inicio: '16:00', fin: '19:00', cupos: 1 }); return P.pintar(); }
@@ -108,6 +124,32 @@ function especialesHtml(pl, P) {
       <td>${e.cerrado ? '<span class="chip bad">Cerrado</span>' : e.turnos.map((t) => `<span class="chip pink">${t.inicio}–${t.fin}${t.cupos > 1 ? ` ×${t.cupos}` : ''}</span>`).join(' ')}</td><td>${esc(e.motivo)}</td>
       <td>${P.esAdmin() ? `<button type="button" class="btn-sm btn-bad" data-accion="espBorrar" data-id="${e.id}">Quitar</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="small muted">No hay días especiales próximos.</div>'}
     ${P.esAdmin() ? '<div><button type="button" class="btn-p" data-accion="espNuevo">Agregar día especial</button></div>' : ''}</div></details>`;
+}
+
+const fmtH = (h) => (Number.isInteger(h) ? String(h) : h.toFixed(1).replace('.', ','));
+const aMin = (h) => { const [a, b] = String(h).split(':').map(Number); return a * 60 + b; };
+
+function editarTurno(id, P) {
+  const d = P.datos.horarios, t = d.turnos.find((x) => x.id === id);
+  if (!t) return;
+  const el = abrirCapa(`<div class="eyebrow">${cap(fLarga(t.fecha))}${d.tiendas.length > 1 ? ' · ' + esc(nombreBonito(t.tienda_nombre)) : ''}</div><h2>Modificar turno</h2>
+    <div class="grid-form"><label class="f">Entrada<input type="time" id="eI" value="${t.inicio}" step="300"></label><label class="f">Salida<input type="time" id="eF" value="${t.fin}" step="300"></label>
+      <label class="f">Persona<select id="eU"><option value="">— Libre —</option>${d.colaboradores.map((u) => `<option value="${u.id}" ${u.id === t.usuario_id ? 'selected' : ''}>${esc(nombreBonito(u.nombre))}</option>`).join('')}</select></label></div>
+    <div class="small muted" id="eDur"></div>
+    <div class="row between"><button type="button" class="btn-bad" data-borrar>Eliminar turno</button><span class="row"><button type="button" data-cerrar>Cancelar</button><button type="button" class="btn-p" data-ok>Guardar</button></span></div>`);
+  const dur = () => { const m = aMin(el.querySelector('#eF').value) - aMin(el.querySelector('#eI').value); el.querySelector('#eDur').textContent = m > 0 ? `Duración: ${fmtH(m / 60)} h` : 'La salida debe ser después de la entrada.'; };
+  el.addEventListener('input', dur); dur();
+  el.querySelector('[data-ok]').addEventListener('click', async () => {
+    try {
+      await P.api.put(`/panel/turnos/${id}`, { inicio: el.querySelector('#eI').value, fin: el.querySelector('#eF').value, usuarioId: Number(el.querySelector('#eU').value) || null });
+      cerrarCapa(); toast('Turno actualizado.'); P.refrescar({ silencioso: true });
+    } catch (e) { toast(e.message, 'bad'); }
+  });
+  el.querySelector('[data-borrar]').addEventListener('click', async () => {
+    cerrarCapa();
+    if (!(await confirmar({ titulo: '¿Eliminar este turno?', texto: 'La plantilla no lo volverá a crear.', si: 'Eliminar', peligro: true }))) return;
+    try { await P.api.del(`/panel/turnos/${id}`); toast('Turno eliminado.'); P.refrescar({ silencioso: true }); } catch (e) { toast(e.message, 'bad'); }
+  });
 }
 
 function turnoExtra(fecha, P) {

@@ -1,4 +1,4 @@
-import { esquemaAjustes, normalizarAjustes } from '../domain/ajustes.js';
+import { esquemaAjustesValidado as esquemaAjustes, normalizarAjustes } from '../domain/ajustes.js';
 import { validar } from '../lib/errores.js';
 
 /* Datos de la empresa y reglas del negocio. Se leen una vez por petición (refrescar) y luego

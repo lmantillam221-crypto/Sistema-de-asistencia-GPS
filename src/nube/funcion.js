@@ -17,11 +17,13 @@ import { Router, despachar } from '../lib/enrutador.js';
 import { ejecutarTareas } from '../jobs.js';
 import { migrarDesdeSqlite } from './migrar-blobs.js';
 import pg001 from '../db/migrations/postgres/001_inicial.sql';
+import pg002 from '../db/migrations/postgres/002_horarios_flexibles.sql';
 import sq001 from '../db/migrations/sqlite/001_inicial.sql';
 import sq002 from '../db/migrations/sqlite/002_indices.sql';
+import sq003 from '../db/migrations/sqlite/003_horarios_flexibles.sql';
 
-const MIG_PG = [{ nombre: '001_inicial.sql', sql: pg001 }];
-const MIG_SQLITE = [{ nombre: '001_inicial.sql', sql: sq001 }, { nombre: '002_indices.sql', sql: sq002 }];
+const MIG_PG = [{ nombre: '001_inicial.sql', sql: pg001 }, { nombre: '002_horarios_flexibles.sql', sql: pg002 }];
+const MIG_SQLITE = [{ nombre: '001_inicial.sql', sql: sq001 }, { nombre: '002_indices.sql', sql: sq002 }, { nombre: '003_horarios_flexibles.sql', sql: sq003 }];
 // Marca fijada al empaquetar (MARCA en el build de Netlify); se puede sobrescribir con la variable de entorno.
 const MARCA_COMPILADA = typeof __MARCA__ !== 'undefined' ? __MARCA__ : undefined; // eslint-disable-line no-undef
 

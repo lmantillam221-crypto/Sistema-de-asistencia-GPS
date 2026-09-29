@@ -7,6 +7,10 @@ const SELECT = `SELECT t.*, u.nombre AS usuario_nombre, u.codigo AS usuario_codi
   ti.nombre AS tienda_nombre FROM turnos t JOIN tiendas ti ON ti.id = t.tienda_id LEFT JOIN usuarios u ON u.id = t.usuario_id`;
 const ORDEN = 'ORDER BY t.fecha, t.inicio, t.tienda_id, t.puesto';
 const solapan = (a, b) => aMin(a.inicio) < aMin(b.fin) && aMin(b.inicio) < aMin(a.fin);
+const horas = (t) => (aMin(t.fin) - aMin(t.inicio)) / 60;
+const fmtH = (h) => (Number.isInteger(h) ? String(h) : h.toFixed(1).replace('.', ','));
+/** Bloque disponible original de un turno (si alguien eligió su propia hora dentro de él). */
+const bloqueDe = (t) => ({ inicio: t.bloque_inicio || t.inicio, fin: t.bloque_fin || t.fin });
 
 export function servicioTurnos(ctx) {
   const { db, reloj } = ctx;
@@ -56,13 +60,20 @@ export function servicioTurnos(ctx) {
       recordar();
     },
 
-    async resincronizarFecha(tiendaId, fecha) {
-      if (!(await db.prepare('SELECT 1 AS x FROM dias_generados WHERE tienda_id = ? AND fecha = ?').get(tiendaId, fecha))) return;
+    /**
+     * Aplica la plantilla (o el día especial) a un día ya generado. Los días editados a mano no se tocan,
+     * salvo que se fuerce (al guardar un día especial para esa fecha). Los turnos con persona asignada
+     * o con marcas nunca se borran ni se mueven.
+     */
+    async resincronizarFecha(tiendaId, fecha, { forzar = false } = {}) {
+      const g = await db.prepare('SELECT personalizado FROM dias_generados WHERE tienda_id = ? AND fecha = ?').get(tiendaId, fecha);
+      if (!g || (g.personalizado && !forzar)) return;
+      if (forzar && g.personalizado) await db.prepare('UPDATE dias_generados SET personalizado = 0 WHERE tienda_id = ? AND fecha = ?').run(tiendaId, fecha);
       const plan = turnosPlanificados(fecha, await T().plantillas(tiendaId), await T().especialPara(tiendaId, fecha));
       const existentes = await db.prepare("SELECT * FROM turnos WHERE tienda_id = ? AND fecha = ? AND origen <> 'manual'").all(tiendaId, fecha);
       const usados = new Set();
       for (const p of plan) {
-        const e = existentes.find((x) => !usados.has(x.id) && x.inicio === p.inicio && x.fin === p.fin && x.puesto === p.puesto);
+        const e = existentes.find((x) => !usados.has(x.id) && bloqueDe(x).inicio === p.inicio && bloqueDe(x).fin === p.fin && x.puesto === p.puesto);
         if (e) { usados.add(e.id); if (e.origen !== p.origen) await db.prepare('UPDATE turnos SET origen = ? WHERE id = ?').run(p.origen, e.id); continue; }
         await insertarTurno(tiendaId, fecha, p);
       }
@@ -104,12 +115,37 @@ export function servicioTurnos(ctx) {
       return api.obtener(turnoId);
     },
 
+    /** Horas ya tomadas por la persona en la semana (sin contar un turno). */
+    async horasSemana(usuarioId, lunes, excluirId = 0) {
+      const ts = await db.prepare('SELECT inicio, fin FROM turnos WHERE usuario_id = ? AND fecha BETWEEN ? AND ? AND id <> ?').all(usuarioId, lunes, sumarDias(lunes, 6), excluirId);
+      return ts.reduce((s, x) => s + horas(x), 0);
+    },
+
+    /** Revisa un horario elegido dentro de un bloque según las reglas de la empresa. Devuelve {inicio, fin}. */
+    validarEleccion(t, pedido, aj) {
+      const b = bloqueDe(t);
+      let inicio = b.inicio, fin = b.fin;
+      if (aj.elegirHoras && pedido && (pedido.inicio || pedido.fin)) {
+        inicio = pedido.inicio || b.inicio; fin = pedido.fin || b.fin;
+        if (!esHora(inicio) || !esHora(fin)) throw invalido('Hora inválida.');
+        if (aMin(inicio) < aMin(b.inicio) || aMin(fin) > aMin(b.fin)) throw invalido(`Elige un horario entre ${b.inicio} y ${b.fin}.`);
+        if (aMin(fin) <= aMin(inicio)) throw invalido('La hora de salida debe ser después de la de entrada.');
+        const paso = aj.pasoMinutos || 30;
+        const alineada = (h) => h === b.inicio || h === b.fin || aMin(h) % paso === 0;
+        if (!alineada(inicio) || !alineada(fin)) throw invalido(`Elige horas en intervalos de ${paso} minutos.`);
+      }
+      const d = horas({ inicio, fin }), total = horas(b);
+      if (aj.horasMinTurno && d < aj.horasMinTurno && d < total) throw invalido(`Cada turno debe tener al menos ${fmtH(aj.horasMinTurno)} h.`);
+      if (aj.horasMaxTurno && d > aj.horasMaxTurno) throw invalido(`Cada turno puede tener como máximo ${fmtH(aj.horasMaxTurno)} h.`);
+      return { inicio, fin };
+    },
+
     /**
-     * Una colaboradora elige un turno libre dentro de la ventana semanal.
-     * Atómico aunque 100 personas elijan en el mismo segundo: se bloquea la fila de la persona
-     * (máximo por semana) y el turno solo se toma si sigue libre.
+     * Una colaboradora elige un turno libre dentro de la ventana semanal, con su hora de entrada y salida
+     * si la empresa lo permite. Atómico aunque 100 personas elijan en el mismo segundo: se bloquea la fila
+     * de la persona (límites de la semana) y el turno solo se toma si sigue libre.
      */
-    async elegir(usuario, turnoId) {
+    async elegir(usuario, turnoId, pedido = null) {
       const aj = ctx.s.empresa.ajustes(), v = infoVentana(aj.ventana, reloj.ahora());
       const t = await api.obtener(turnoId);
       if (!t) throw noEncontrado('Turno');
@@ -117,23 +153,36 @@ export function servicioTurnos(ctx) {
       if (!api.puedeElegirSemana(lunes)) throw prohibido('La elección de horarios está cerrada.');
       if (t.usuario_id && t.usuario_id !== usuario.id) throw conflicto('Ese turno ya lo eligió otra persona.');
       if (t.usuario_id === usuario.id) return t;
+      const { inicio, fin } = api.validarEleccion(t, pedido, aj);
+      const b = bloqueDe(t), cambia = inicio !== b.inicio || fin !== b.fin;
       await transaccion(db, async () => {
         await db.bloquearFila('usuarios', usuario.id);
         if ((await api.cuentaSemana(usuario.id, lunes)) >= aj.maxTurnosSemana) throw conflicto(`Ya completaste tus ${aj.maxTurnosSemana} turno(s) de la semana.`);
-        if (await db.prepare('SELECT 1 AS x FROM turnos WHERE usuario_id = ? AND fecha = ?').get(usuario.id, t.fecha)) throw conflicto('Ya tienes un turno ese día.');
-        const r = await db.prepare("UPDATE turnos SET usuario_id = ?, asignado_por = 'colaborador', asignado_en = ? WHERE id = ? AND usuario_id IS NULL").run(usuario.id, reloj.ms(), turnoId);
+        if (aj.unTurnoPorDia && await db.prepare('SELECT 1 AS x FROM turnos WHERE usuario_id = ? AND fecha = ?').get(usuario.id, t.fecha)) throw conflicto('Ya tienes un turno ese día.');
+        const c = await api.cruce(usuario.id, { ...t, inicio, fin });
+        if (c) throw conflicto(`Se cruza con tu turno de ${c.inicio} a ${c.fin}.`);
+        if (aj.horasMaxSemana) {
+          const ya = await api.horasSemana(usuario.id, lunes);
+          if (ya + horas({ inicio, fin }) > aj.horasMaxSemana + 1e-9) throw conflicto(`Con este turno pasarías el máximo de ${fmtH(aj.horasMaxSemana)} h por semana (ya tienes ${fmtH(ya)} h).`);
+        }
+        const r = await db.prepare(`UPDATE turnos SET usuario_id = ?, asignado_por = 'colaborador', asignado_en = ?, inicio = ?, fin = ?, bloque_inicio = ?, bloque_fin = ?
+          WHERE id = ? AND usuario_id IS NULL`).run(usuario.id, reloj.ms(), inicio, fin, cambia ? b.inicio : null, cambia ? b.fin : null, turnoId);
         if (!r.changes) throw conflicto('Ese turno ya lo eligió otra persona.');
       });
-      await ctx.s.auditoria.registrar(usuario, 'turno_elegido', 'turno', turnoId, { fecha: t.fecha, inicio: t.inicio, ventana: v.abierta });
+      await ctx.s.auditoria.registrar(usuario, 'turno_elegido', 'turno', turnoId, { fecha: t.fecha, inicio, fin, ventana: v.abierta });
       ctx.bus.emit('cambio', { tipo: 'horarios' });
       return api.obtener(turnoId);
     },
     async soltar(usuario, turnoId) {
+      const aj = ctx.s.empresa.ajustes();
       const t = await api.obtener(turnoId);
       if (!t || t.usuario_id !== usuario.id) throw noEncontrado('Turno');
+      if (!aj.permitirSoltar) throw prohibido('Los turnos elegidos no se pueden soltar. Pide una cobertura o habla con administración.');
       if (!api.puedeElegirSemana(lunesDe(t.fecha))) throw prohibido('Fuera de la ventana de elección no puedes soltar turnos. Pide una cobertura.');
-      await db.prepare('UPDATE turnos SET usuario_id = NULL, asignado_por = NULL, asignado_en = NULL WHERE id = ? AND usuario_id = ?').run(turnoId, usuario.id);
-      await ctx.s.auditoria.registrar(usuario, 'turno_soltado', 'turno', turnoId, { fecha: t.fecha, inicio: t.inicio });
+      const b = bloqueDe(t);
+      await db.prepare(`UPDATE turnos SET usuario_id = NULL, asignado_por = NULL, asignado_en = NULL, inicio = ?, fin = ?, bloque_inicio = NULL, bloque_fin = NULL
+        WHERE id = ? AND usuario_id = ?`).run(b.inicio, b.fin, turnoId, usuario.id);
+      await ctx.s.auditoria.registrar(usuario, 'turno_soltado', 'turno', turnoId, { fecha: t.fecha, inicio: t.inicio, fin: t.fin });
       ctx.bus.emit('cambio', { tipo: 'horarios' });
     },
     puedeElegirSemana(lunes) {
@@ -156,11 +205,44 @@ export function servicioTurnos(ctx) {
       ctx.bus.emit('cambio', { tipo: 'horarios' });
       return api.obtener(id);
     },
+    /** Marca el día como editado a mano: la plantilla ya no lo modificará. */
+    marcarPersonalizado: (tiendaId, fecha) => db.prepare('UPDATE dias_generados SET personalizado = 1 WHERE tienda_id = ? AND fecha = ?').run(tiendaId, fecha),
+
+    /** Cambia el horario y/o la persona de un turno (desde el panel). */
+    async editar(id, { inicio, fin, usuario_id }, quien) {
+      const t = await api.obtener(id);
+      if (!t) throw noEncontrado('Turno');
+      const ni = inicio ?? t.inicio, nf = fin ?? t.fin;
+      if (!esHora(ni) || !esHora(nf) || aMin(nf) <= aMin(ni)) throw invalido('La hora de salida debe ser después de la de entrada.');
+      const uid = usuario_id === undefined ? t.usuario_id : usuario_id;
+      if (uid) {
+        const u = await ctx.s.usuarios.porId(uid);
+        if (!u || !u.activo) throw invalido('Colaboradora no válida.');
+        const c = await api.cruce(uid, { ...t, inicio: ni, fin: nf });
+        if (c) throw conflicto(`${u.nombre} ya tiene un turno que se cruza (${c.inicio}–${c.fin}).`);
+      }
+      const cambiaHora = ni !== t.inicio || nf !== t.fin, cambiaPersona = (uid || null) !== (t.usuario_id || null);
+      if (!cambiaHora && !cambiaPersona) return t;
+      await transaccion(db, async () => {
+        await db.prepare(`UPDATE turnos SET inicio = ?, fin = ?, bloque_inicio = ?, bloque_fin = ?, usuario_id = ?, asignado_por = ?, asignado_en = ? WHERE id = ?`).run(
+          ni, nf, cambiaHora ? null : t.bloque_inicio, cambiaHora ? null : t.bloque_fin, uid || null,
+          cambiaPersona ? (uid ? 'supervisor' : null) : t.asignado_por, cambiaPersona ? (uid ? reloj.ms() : null) : t.asignado_en, id);
+        if (cambiaHora) await api.marcarPersonalizado(t.tienda_id, t.fecha);
+      });
+      await ctx.s.auditoria.registrar(quien, 'turno_editado', 'turno', id, { fecha: t.fecha, antes: { inicio: t.inicio, fin: t.fin, usuarioId: t.usuario_id }, despues: { inicio: ni, fin: nf, usuarioId: uid || null } });
+      ctx.bus.emit('cambio', { tipo: 'horarios' });
+      return api.obtener(id);
+    },
+
     async eliminar(id, quien) {
       const t = await api.obtener(id);
       if (!t) throw noEncontrado('Turno');
-      if (await tieneMarcas(id)) throw conflicto('Ese turno ya tiene marcas de asistencia; no se puede eliminar.');
-      await db.prepare('DELETE FROM turnos WHERE id = ?').run(id);
+      if (await tieneMarcas(id)) throw conflicto('Ese turno ya tiene marcas de asistencia (entrada o salida registrada), por eso no se puede eliminar. Puedes cambiar su horario o liberarlo.');
+      await transaccion(db, async () => {
+        await db.prepare('DELETE FROM coberturas WHERE turno_id = ?').run(id);
+        await db.prepare('DELETE FROM turnos WHERE id = ?').run(id);
+        if (t.origen !== 'manual') await api.marcarPersonalizado(t.tienda_id, t.fecha);
+      });
       await ctx.s.auditoria.registrar(quien, 'turno_eliminado', 'turno', id, { fecha: t.fecha, inicio: t.inicio, fin: t.fin });
       ctx.bus.emit('cambio', { tipo: 'horarios' });
     },

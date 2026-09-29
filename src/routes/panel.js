@@ -129,6 +129,10 @@ export function rutasPanel(ctx) {
     const d = validar(z.object({ tienda_id: z.number().int(), fecha: z.string(), inicio: hora, fin: hora, usuario_id: z.number().int().nullable().optional() }), req.body);
     res.status(201).json(await ctx.s.turnos.crearExtra(d, req.usuario));
   }));
+  r.put('/turnos/:id', h(async (req, res) => {
+    const d = validar(z.object({ inicio: hora.optional(), fin: hora.optional(), usuarioId: z.number().int().positive().nullable().optional() }), req.body);
+    res.json(await ctx.s.turnos.editar(id(req), { inicio: d.inicio, fin: d.fin, usuario_id: d.usuarioId }, req.usuario));
+  }));
   r.delete('/turnos/:id', h(async (req, res) => { await ctx.s.turnos.eliminar(id(req), req.usuario); res.json({ ok: true }); }));
   r.get('/plantillas', h(async (req, res) => res.json({ tiendas: await ctx.s.tiendas.listar(), plantillas: await ctx.s.tiendas.todasPlantillas(), especiales: await ctx.s.tiendas.diasEspeciales({ desde: sumarDias(hoy(), -30) }) })));
   r.put('/tiendas/:id/plantillas', admin, h(async (req, res) => {

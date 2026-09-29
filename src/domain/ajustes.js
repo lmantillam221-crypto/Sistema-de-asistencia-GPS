@@ -13,6 +13,16 @@ export const esquemaAjustes = z.object({
     .refine((v) => v.hasta > v.desde, 'La ventana debe terminar después de empezar')
     .default({ dia: 0, desde: '21:00', hasta: '22:00' }),
   ventanaSemanaCompleta: z.boolean().default(false),
+  // Elección de horarios
+  elegirHoras: z.boolean().default(true), // cada persona elige su hora de entrada y salida dentro del bloque
+  pasoMinutos: z.union([z.literal(15), z.literal(30), z.literal(60)]).default(30),
+  horasMinTurno: z.number().min(0).max(16).default(0), // 0 = sin mínimo
+  horasMaxTurno: z.number().min(0).max(16).default(0), // 0 = sin límite
+  horasMinSemana: z.number().min(0).max(80).default(0),
+  horasMaxSemana: z.number().min(0).max(80).default(0),
+  unTurnoPorDia: z.boolean().default(true),
+  permitirSoltar: z.boolean().default(true),
+  mostrarCompaneras: z.boolean().default(true),
   multas: z.object({
     tardanza: z.number().min(0).max(10000).default(5),
     falta: z.number().min(0).max(10000).default(20),
@@ -33,6 +43,13 @@ export const esquemaAjustes = z.object({
     'Caja cuadrada con las ventas del turno',
     'Probadores revisados y local cerrado con llave',
   ]),
+});
+
+const base = esquemaAjustes;
+/** Además de cada campo, revisa que los mínimos no superen a los máximos. */
+export const esquemaAjustesValidado = base.superRefine((a, c) => {
+  if (a.horasMaxTurno && a.horasMinTurno > a.horasMaxTurno) c.addIssue({ code: 'custom', path: ['horasMinTurno'], message: 'Las horas mínimas por turno no pueden ser más que las máximas.' });
+  if (a.horasMaxSemana && a.horasMinSemana > a.horasMaxSemana) c.addIssue({ code: 'custom', path: ['horasMinSemana'], message: 'Las horas mínimas por semana no pueden ser más que las máximas.' });
 });
 
 export const AJUSTES_POR_DEFECTO = esquemaAjustes.parse({});

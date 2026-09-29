@@ -20,8 +20,9 @@ import { asegurarBaseDemo, generarEjemplo } from '../src/lib/demo.js';
 import { partes, instante } from '../src/domain/tiempo.js';
 import sq001 from '../src/db/migrations/sqlite/001_inicial.sql';
 import sq002 from '../src/db/migrations/sqlite/002_indices.sql';
+import sq003 from '../src/db/migrations/sqlite/003_horarios_flexibles.sql';
 
-const MIGRACIONES = [{ nombre: '001_inicial.sql', sql: sq001 }, { nombre: '002_indices.sql', sql: sq002 }];
+const MIGRACIONES = [{ nombre: '001_inicial.sql', sql: sq001 }, { nombre: '002_indices.sql', sql: sq002 }, { nombre: '003_horarios_flexibles.sql', sql: sq003 }];
 
 // setInterval(...).unref() existe en Node; en el navegador no hace falta.
 // eslint-disable-next-line no-extend-native

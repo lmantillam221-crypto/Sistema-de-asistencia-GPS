@@ -48,18 +48,21 @@ async function cargarTab() {
 /* =====================================================================
    RENDER
    ===================================================================== */
+let ultimaTab = null; // anima la entrada solo al cambiar de pestaña
 function render() {
   if (!est.info) return;
   if (!est.datos) return renderLogin();
   const d = est.datos, p = ahoraServidor();
   const badges = { horario: (d.ventana.puedeElegir ? 1 : 0) + d.coberturas, multas: d.multas.cantidad };
   const cuerpo = { hoy: pantallaHoy, horario: pantallaHorario, multas: pantallaMultas, perfil: pantallaPerfil }[est.tab]?.() ?? '';
+  const listo = !cuerpo.includes('class="cargando"'), anima = listo && ultimaTab !== est.tab;
+  if (listo) ultimaTab = est.tab;
   redibujar(raiz, `<div class="m-app">
     ${est.online ? '' : '<div class="offline">Sin internet · los reportes se guardan y se envían al volver la conexión</div>'}
     <header class="m-top"><img src="/assets/logo.webp" alt="${esc(d.empresa)}">
       <div class="reloj">${p.hora}<small>${cap(fLarga(p.fecha))}</small></div></header>
     ${d.demo ? '<div class="offline" style="background:#fff8e6">Modo demostración</div>' : ''}
-    <main class="m-main" id="main">${cuerpo}</main>
+    <main class="m-main${anima ? ' entra' : ''}" id="main">${cuerpo}</main>
     <div class="tabbar"><nav aria-label="Secciones">${TABS.map(([k, t, ic]) => `<button type="button" data-tab="${k}" ${est.tab === k ? 'aria-current="page"' : ''}>${icono(ic)}<span>${t}</span>${badges[k] ? `<span class="badge">${badges[k]}</span>` : ''}</button>`).join('')}</nav></div>
   </div>`);
 }
@@ -172,8 +175,14 @@ function pantallaHorario() {
   if (!h) return '<div class="cargando"><span class="spinner"></span></div>';
   const v = h.ventana;
   const nav = `<div class="semana-tabs" role="group" aria-label="Semana"><button type="button" data-semana="esta" aria-pressed="${est.semana === 'esta'}">Esta semana</button><button type="button" data-semana="sig" aria-pressed="${est.semana === 'sig'}">Próxima semana</button></div>`;
+  const r = h.reglas || {};
+  const reglasTxt = [r.elegirHoras ? 'Elige el día y tu hora de entrada y salida' : '', r.minTurno ? `mínimo ${fmtH(r.minTurno)} h por turno` : '', r.maxTurno ? `máximo ${fmtH(r.maxTurno)} h por turno` : ''].filter(Boolean).join(' · ');
+  const tope = r.maxSemana || r.minSemana;
+  const progreso = tope ? `<div class="progreso-horas"><div class="row between"><span class="small"><b>${fmtH(h.horasTengo)} h</b> elegidas esta semana</span><span class="tiny muted">${r.minSemana ? `mínimo ${fmtH(r.minSemana)} h` : ''}${r.minSemana && r.maxSemana ? ' · ' : ''}${r.maxSemana ? `máximo ${fmtH(r.maxSemana)} h` : ''}</span></div>
+    <div class="barra"><i style="width:${Math.min(100, (h.horasTengo / (r.maxSemana || r.minSemana)) * 100)}%"></i>${r.minSemana && r.maxSemana ? `<b style="left:${(r.minSemana / r.maxSemana) * 100}%" title="Mínimo"></b>` : ''}</div>
+    ${r.minSemana && h.horasTengo < r.minSemana ? `<div class="tiny" style="color:var(--warn-ink)">Te faltan ${fmtH(r.minSemana - h.horasTengo)} h para el mínimo.</div>` : ''}</div>` : '';
   const aviso = h.puedeElegir
-    ? `<div class="msg ok"><b>Elección abierta</b> para la semana del ${fCorta(h.lunes)} al ${fCorta(sumarDias(h.lunes, 6))}.${v.abierta ? ` Cierra a las ${hora12(v.hasta)} (quedan ${v.quedan} min).` : ''} Puedes elegir hasta <b>${plural(h.max, 'turno')}</b>; llevas ${h.tengo}. ¡El primero que elige se queda con el turno!</div>`
+    ? `<div class="msg ok"><b>Elección abierta</b> para la semana del ${fCorta(h.lunes)} al ${fCorta(sumarDias(h.lunes, 6))}.${v.abierta ? ` Cierra a las ${hora12(v.hasta)} (quedan ${v.quedan} min).` : ''} Puedes elegir hasta <b>${plural(h.max, 'turno')}</b>; llevas ${h.tengo}.${reglasTxt ? `<br><span class="small">${reglasTxt}.</span>` : ''}</div>${progreso}`
     : `<div class="msg grey">La elección de horarios se abre el <b>${DIAS[v.dia]} de ${hora12(v.desde)} a ${hora12(v.hasta)}</b>. Próxima: <b>${fLarga(v.fecha)}</b>, para la semana del ${fCorta(v.semana)}.</div>`;
   const pedidas = new Set((c?.mias || []).filter((x) => x.estado === 'abierta').map((x) => x.turno_id));
   const variasTiendas = h.tiendas.length > 1;
@@ -181,16 +190,16 @@ function pantallaHorario() {
   for (let i = 0; i < 7; i++) {
     const f = sumarDias(h.lunes, i), ts = h.turnos.filter((t) => t.fecha === f);
     if (!ts.length) { dias += `<div class="dia-m"><b>${cap(fLarga(f))}</b><span class="tiny muted">Cerrado</span></div>`; continue; }
-    const tengoEseDia = ts.some((t) => t.mio);
+    const tengoEseDia = (h.reglas?.unTurnoPorDia ?? true) && ts.some((t) => t.mio);
     dias += `<div class="dia-m ${f === p.fecha ? 'hoy' : ''}"><b>${cap(fLarga(f))}${f === p.fecha ? ' · hoy' : ''}</b>${ts.map((t) => {
       const futuro = f > p.fecha || (f === p.fecha && aMin(t.inicio) > p.minutos);
       const lugar = variasTiendas ? ` · ${esc(nombreBonito(t.tienda))}` : '';
       if (t.mio) {
-        return `<div class="elegir-btn mio" style="border:1px solid var(--brand)"><span class="num"><b>${t.inicio}–${t.fin}</b>${lugar}</span><span class="row nw">${h.puedeElegir ? `<button type="button" class="btn-sm" data-soltar="${t.id}">Soltar</button>` : futuro ? (pedidas.has(t.id) ? '<span class="chip info">Cobertura pedida</span>' : `<button type="button" class="btn-sm" data-pedircob="${t.id}">Pedir cobertura</button>`) : '<span class="small">Tu turno</span>'}</span></div>`;
+        return `<div class="elegir-btn mio" style="border:1px solid var(--brand)"><span class="num"><b>${t.inicio}–${t.fin}</b>${lugar}</span><span class="row nw">${h.puedeElegir && h.reglas?.permitirSoltar !== false ? `<button type="button" class="btn-sm" data-soltar="${t.id}">Soltar</button>` : h.puedeElegir ? '<span class="small">Tu turno</span>' : futuro ? (pedidas.has(t.id) ? '<span class="chip info">Cobertura pedida</span>' : `<button type="button" class="btn-sm" data-pedircob="${t.id}">Pedir cobertura</button>`) : '<span class="small">Tu turno</span>'}</span></div>`;
       }
       if (t.usuario_id) return `<div class="elegir-btn ocupado"><span class="num"><b>${t.inicio}–${t.fin}</b>${lugar}</span><span class="small">${esc(nombreBonito(t.usuario))}</span></div>`;
       const bloqueado = !h.puedeElegir || h.tengo >= h.max || tengoEseDia;
-      return `<button type="button" class="elegir-btn libre" ${bloqueado ? 'disabled' : `data-elegir="${t.id}"`}><span class="num"><b>${t.inicio}–${t.fin}</b>${lugar}</span><span class="small">${!h.puedeElegir ? 'Libre' : h.tengo >= h.max ? 'Ya completaste tus turnos' : tengoEseDia ? '—' : 'Libre · tocar para elegir'}</span></button>`;
+      return `<button type="button" class="elegir-btn libre" ${bloqueado ? 'disabled' : `data-elegir="${t.id}"`}><span class="num"><b>${t.inicio}–${t.fin}</b>${lugar}</span><span class="small">${!h.puedeElegir ? 'Libre' : h.tengo >= h.max ? 'Ya completaste tus turnos' : tengoEseDia ? '—' : h.reglas?.elegirHoras ? 'Libre · elige tu horario' : 'Libre · tocar para elegir'}</span></button>`;
     }).join('')}</div>`;
   }
   const abiertas = (c?.abiertas || []);
@@ -349,6 +358,47 @@ function mostrarPermisoBloqueado() {
     <button type="button" class="btn-p btn-big" data-cerrar>Entendido</button>`, { clase: 'hoja', fondo: 'hoja-fondo' });
 }
 
+const fmtH = (x) => (Number.isInteger(x) ? String(x) : Number(x).toFixed(1).replace('.', ','));
+const deMin = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+/** Hoja para elegir hora de entrada y salida dentro del bloque de un turno libre. */
+function elegirHorario(t) {
+  const h = est.horario, r = h.reglas || {}, paso = r.paso || 30;
+  const bi = aMin(t.bloque.inicio), bf = aMin(t.bloque.fin);
+  const marcas = [bi]; for (let m = Math.ceil((bi + 1) / paso) * paso; m < bf; m += paso) marcas.push(m); marcas.push(bf);
+  const minM = r.minTurno ? Math.min(r.minTurno * 60, bf - bi) : paso, maxM = r.maxTurno ? r.maxTurno * 60 : bf - bi;
+  const opt = (lista, sel) => lista.map((m) => `<option value="${deMin(m)}" ${m === sel ? 'selected' : ''}>${hora12(deMin(m))}</option>`).join('');
+  let ini = bi, fin = Math.min(bf, bi + Math.max(minM, Math.min(maxM, bf - bi)));
+  if (!marcas.includes(fin)) fin = marcas.find((m) => m >= fin) ?? bf;
+  const el = abrirCapa(`<div class="eyebrow">${cap(fLarga(t.fecha))}${h.tiendas.length > 1 ? ' · ' + esc(nombreBonito(t.tienda)) : ''}</div>
+    <h2>Elige tu horario</h2><p class="small muted">${[`Horario disponible: ${hora12(t.bloque.inicio)} a ${hora12(t.bloque.fin)}`, r.minTurno ? `mínimo ${fmtH(r.minTurno)} h` : '', r.maxTurno ? `máximo ${fmtH(r.maxTurno)} h` : ''].filter(Boolean).join(' · ')}</p>
+    <div class="grid-2c"><label class="f">Entrada<select id="hIni"></select></label><label class="f">Salida<select id="hFin"></select></label></div>
+    <div class="resumen-hora" id="hRes"></div>
+    <button type="button" class="btn-p btn-big" data-ok>Elegir este horario</button><button type="button" class="btn-ghost" data-cerrar>Cancelar</button>`, { clase: 'hoja', fondo: 'hoja-fondo' });
+  const sIni = el.querySelector('#hIni'), sFin = el.querySelector('#hFin'), res = el.querySelector('#hRes'), ok = el.querySelector('[data-ok]');
+  const pintarSel = () => {
+    sIni.innerHTML = opt(marcas.filter((m) => m <= bf - minM), ini);
+    const fines = marcas.filter((m) => m - ini >= minM && m - ini <= maxM);
+    if (!fines.includes(fin)) fin = fines[fines.length - 1] ?? bf;
+    sFin.innerHTML = opt(fines, fin);
+    const dur = (fin - ini) / 60, total = h.horasTengo + dur;
+    const pasa = r.maxSemana && total > r.maxSemana;
+    res.innerHTML = `<b>${fmtH(dur)} h</b> de turno · tu semana quedaría en <b>${fmtH(total)} h</b>${pasa ? `<div class="small" style="color:var(--bad-ink)">Pasarías el máximo de ${fmtH(r.maxSemana)} h por semana.</div>` : ''}`;
+    ok.disabled = !!pasa || fin <= ini;
+  };
+  sIni.addEventListener('change', () => { ini = aMin(sIni.value); pintarSel(); });
+  sFin.addEventListener('change', () => { fin = aMin(sFin.value); pintarSel(); });
+  pintarSel();
+  ok.addEventListener('click', async () => {
+    ok.disabled = true;
+    try {
+      await api.post(`/app/turnos/${t.id}/elegir`, { inicio: deMin(ini), fin: deMin(fin) });
+      cerrarCapa(); toast(`¡Listo! Tu turno: ${hora12(deMin(ini))} a ${hora12(deMin(fin))}`); if (navigator.vibrate) navigator.vibrate(40);
+      await Promise.all([cargarTab(), cargarHoy()]);
+    } catch (e) { toast(e.message, 'bad'); ok.disabled = false; if (e.status === 409) { cerrarCapa(); cargarTab(); } }
+  });
+}
+
 function elegirCubrir() {
   const d = est.datos;
   const el = abrirCapa(`<div><div class="eyebrow">Cubrir turno</div><h2>¿Qué turno vas a cubrir?</h2><p class="small muted">La supervisión verá que cubriste el turno. Si lo coordinaste antes, es mejor que la otra persona pida cobertura desde su app.</p></div>
@@ -405,7 +455,11 @@ document.addEventListener('click', async (e) => {
       if (turnoAbierto() && !(await confirmar({ titulo: '¿Cerrar sesión con el turno abierto?', texto: 'Los reportes de ubicación se detendrán hasta que vuelvas a ingresar.', si: 'Cerrar sesión', clase: 'hoja', fondo: 'hoja-fondo' }))) return;
       await api.post('/app/logout'); gps.detener(); est.datos = null; est.msg = null; return render();
     }
-    if (ds.elegir) { await api.post(`/app/turnos/${ds.elegir}/elegir`); toast('¡Turno elegido! Listo.'); if (navigator.vibrate) navigator.vibrate(40); await Promise.all([cargarTab(), cargarHoy()]); return; }
+    if (ds.elegir) {
+      const t = est.horario.turnos.find((x) => x.id === Number(ds.elegir));
+      if (est.horario.reglas?.elegirHoras && t) return elegirHorario(t);
+      await api.post(`/app/turnos/${ds.elegir}/elegir`); toast('¡Turno elegido! Listo.'); if (navigator.vibrate) navigator.vibrate(40); await Promise.all([cargarTab(), cargarHoy()]); return;
+    }
     if (ds.soltar) { if (!(await confirmar({ titulo: '¿Soltar este turno?', texto: 'Quedará libre para que otra persona lo elija.', si: 'Soltar', clase: 'hoja', fondo: 'hoja-fondo' }))) return; await api.del(`/app/turnos/${ds.soltar}/elegir`); toast('Turno liberado.'); await Promise.all([cargarTab(), cargarHoy()]); return; }
     if (ds.pedircob) return pedirCobertura(Number(ds.pedircob));
     if (ds.tomar) { if (!(await confirmar({ titulo: '¿Tomar este turno?', texto: 'Pasará a tu nombre y tendrás que asistir.', si: 'Sí, lo tomo', clase: 'hoja', fondo: 'hoja-fondo' }))) return; await api.post(`/app/coberturas/${ds.tomar}/tomar`); toast('Turno tomado. ¡Gracias por cubrir!'); await Promise.all([cargarTab(), cargarHoy()]); return; }

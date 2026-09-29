@@ -1,3 +1,8 @@
-/* Marca: Nube.chic (predeterminada). Tipografías: Outfit (títulos y cifras) + Figtree (textos).
-   La paleta vive en app.css; otras marcas redefinen aquí sus tokens. */
-@import url("https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap");
+/* Marca: Nube.chic (predeterminada). Color de acento: rosa del logo #FC90AE.
+   Tipografía: SF Pro en iPhone/Mac e Inter en los demás equipos (clara y elegante). */
+@import url("https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&display=swap");
+:root {
+  --brand: #f7a1bb; --brand-2: #e0578a; --brand-strong: #c2386c; --brand-soft: #ffe4ed; --brand-softer: #fff6f9;
+  --grad: linear-gradient(180deg, #f27da2 0%, #e0578a 100%);
+  --ring: rgba(224,87,138,.26); --focus: rgba(224,87,138,.45);
+}

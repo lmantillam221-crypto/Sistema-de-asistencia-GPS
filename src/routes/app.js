@@ -101,16 +101,31 @@ export function rutasApp(ctx) {
     let lunes = String(req.query.semana || '');
     if (!esFecha(lunes)) lunes = ctx.s.turnos.puedeElegirSemana(v.semana) ? v.semana : esta;
     lunes = lunesDe(lunes);
-    const turnos = (await ctx.s.turnos.listar({ desde: lunes, hasta: sumarDias(lunes, 6) })).map((t) => ({
-      id: t.id, fecha: t.fecha, inicio: t.inicio, fin: t.fin, tienda_id: t.tienda_id, tienda: t.tienda_nombre,
-      usuario_id: t.usuario_id, usuario: t.usuario_nombre, mio: t.usuario_id === u.id,
-    }));
+    await ctx.s.turnos.asegurarRango(lunes, sumarDias(lunes, 6));
+    const [lista, tiendas] = await Promise.all([ctx.s.turnos.listar({ desde: lunes, hasta: sumarDias(lunes, 6) }), ctx.s.tiendas.listar()]);
+    const turnos = lista.map((t) => {
+      const mio = t.usuario_id === u.id;
+      return {
+        id: t.id, fecha: t.fecha, inicio: t.inicio, fin: t.fin, bloque: { inicio: t.bloque_inicio || t.inicio, fin: t.bloque_fin || t.fin },
+        tienda_id: t.tienda_id, tienda: t.tienda_nombre, usuario_id: mio ? t.usuario_id : t.usuario_id ? -1 : null,
+        usuario: mio || aj.mostrarCompaneras ? t.usuario_nombre : t.usuario_id ? 'Ocupado' : null, mio,
+      };
+    });
+    const mios = turnos.filter((t) => t.mio);
+    const horasTengo = mios.reduce((s, t) => s + (aMin(t.fin) - aMin(t.inicio)) / 60, 0);
     res.json({
       lunes, esta, ventana: v, puedeElegir: ctx.s.turnos.puedeElegirSemana(lunes), max: aj.maxTurnosSemana,
-      tengo: turnos.filter((t) => t.mio).length, turnos, tiendas: (await ctx.s.tiendas.listar()).map((t) => ({ id: t.id, nombre: t.nombre })),
+      tengo: mios.length, horasTengo, turnos, tiendas: tiendas.map((t) => ({ id: t.id, nombre: t.nombre })),
+      reglas: {
+        elegirHoras: aj.elegirHoras, paso: aj.pasoMinutos, minTurno: aj.horasMinTurno, maxTurno: aj.horasMaxTurno,
+        minSemana: aj.horasMinSemana, maxSemana: aj.horasMaxSemana, unTurnoPorDia: aj.unTurnoPorDia, permitirSoltar: aj.permitirSoltar,
+      },
     });
   }));
-  r.post('/turnos/:id/elegir', h(async (req, res) => res.json(await ctx.s.turnos.elegir(req.usuario, Number(req.params.id)))));
+  r.post('/turnos/:id/elegir', h(async (req, res) => {
+    const d = validar(z.object({ inicio: z.string().optional(), fin: z.string().optional() }), req.body || {});
+    res.json(await ctx.s.turnos.elegir(req.usuario, Number(req.params.id), d));
+  }));
   r.delete('/turnos/:id/elegir', h(async (req, res) => { await ctx.s.turnos.soltar(req.usuario, Number(req.params.id)); res.json({ ok: true }); }));
 
   r.get('/multas', h(async (req, res) => {

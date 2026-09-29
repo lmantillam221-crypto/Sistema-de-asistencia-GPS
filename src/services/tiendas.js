@@ -21,7 +21,7 @@ export function servicioTiendas(ctx) {
     if (!(t.radio_m >= 10 && t.radio_m <= 5000)) throw invalido('El radio permitido va de 10 a 5000 m.');
   };
   const resincronizarTiendas = async (tiendaId, fecha) => {
-    for (const t of tiendaId ? [await obtener(tiendaId)] : await api.listar()) if (t) await ctx.s.turnos.resincronizarFecha(t.id, fecha);
+    for (const t of tiendaId ? [await obtener(tiendaId)] : await api.listar()) if (t) await ctx.s.turnos.resincronizarFecha(t.id, fecha, { forzar: true });
   };
   const api = {
     obtener,

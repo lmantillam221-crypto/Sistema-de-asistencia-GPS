@@ -16,6 +16,7 @@ export default {
     const lista = (id, items, titulo, desc) => `<div class="card"><div><h2>${titulo}</h2><span class="small muted">${desc}</span></div>
       <div class="stack" style="gap:8px">${items.map((x, i) => `<div class="row nw"><input type="text" data-lista="${id}" data-i="${i}" value="${esc(x)}" maxlength="80" data-fijo="1"><button type="button" class="btn-sm btn-bad" data-accion="quitarItem" data-lista="${id}" data-i="${i}" aria-label="Quitar">✕</button></div>`).join('') || '<span class="small muted">Sin ítems: no se mostrará el checklist.</span>'}</div>
       <div><button type="button" class="btn-sm" data-accion="agregarItem" data-lista="${id}">+ Agregar ítem</button></div></div>`;
+    const num = (id, k, v, { min = 0, max = 99, step = 1, suf = '', ayuda = '' } = {}) => `<label class="f">${k.etq}<div class="moneda sufijo"><input type="number" id="${id}" data-k="${k.k}" data-n="1" min="${min}" max="${max}" step="${step}" value="${v}" data-fijo="1">${suf ? `<span>${suf}</span>` : ''}</div>${ayuda ? `<small>${ayuda}</small>` : ''}</label>`;
     return `<div class="grid-2">
       <div class="card"><div><h2>Empresa</h2></div><div class="grid-form">
         <label class="f">Nombre comercial<input type="text" id="aNombre" data-k="nombre" value="${esc(b.nombre)}" data-fijo="1"></label>
@@ -25,17 +26,33 @@ export default {
         <label class="f">Tardanza<div class="moneda"><span>S/</span><input type="number" id="aMT" data-k="multas.tardanza" data-n="1" min="0" step="0.5" value="${b.multas.tardanza}" data-fijo="1"></div></label>
         <label class="f">Falta<div class="moneda"><span>S/</span><input type="number" id="aMF" data-k="multas.falta" data-n="1" min="0" step="0.5" value="${b.multas.falta}" data-fijo="1"></div></label>
         <label class="f">Salida anticipada<div class="moneda"><span>S/</span><input type="number" id="aMS" data-k="multas.salidaAnticipada" data-n="1" min="0" step="0.5" value="${b.multas.salidaAnticipada}" data-fijo="1"></div></label></div></div>
-      <div class="card ancho"><div><h2>Reglas de asistencia y horarios</h2></div><div class="grid-form">
-        <label class="f">Tolerancia de tardanza (min)<input type="number" id="aTol" data-k="toleranciaMin" data-n="1" min="0" max="120" value="${b.toleranciaMin}" data-fijo="1"></label>
-        <label class="f">Reporte GPS automático cada (min)<input type="number" id="aInt" data-k="intervaloControlMin" data-n="1" min="5" max="240" value="${b.intervaloControlMin}" data-fijo="1"></label>
-        <label class="f">Precisión GPS máxima aceptada (m)<input type="number" id="aPrec" data-k="precisionMaximaM" data-n="1" min="20" max="1000" value="${b.precisionMaximaM}" data-fijo="1"></label>
-        <label class="f">Máximo de turnos por persona a la semana<input type="number" id="aMax" data-k="maxTurnosSemana" data-n="1" min="1" max="21" value="${b.maxTurnosSemana}" data-fijo="1"></label>
-        <label class="f">Recordatorio antes del turno (horas)<input type="number" id="aRec" data-k="recordatorioHoras" data-n="1" min="0" max="48" step="0.5" value="${b.recordatorioHoras}" data-fijo="1"></label>
-        <label class="f">Día de elección de horarios<select id="aVD" data-k="ventana.dia" data-n="1" data-fijo="1">${ORDEN_SEMANA.map((d) => `<option value="${d}" ${b.ventana.dia === d ? 'selected' : ''}>${cap(DIAS[d])}</option>`).join('')}</select></label>
-        <label class="f">Elección desde<input type="time" id="aVDe" data-k="ventana.desde" value="${b.ventana.desde}" data-fijo="1"></label>
-        <label class="f">Elección hasta<input type="time" id="aVH" data-k="ventana.hasta" value="${b.ventana.hasta}" data-fijo="1"></label></div>
-        <div>${tog('aVSC', b.ventanaSemanaCompleta, 'Elección abierta toda la semana previa', 'Además de la ventana, se pueden elegir turnos libres de la próxima semana en cualquier momento.')}
-          ${tog('aExig', b.exigirUbicacionEnEntrada, 'Exigir estar en la tienda para marcar entrada', 'Si está fuera de la geocerca, la app no deja marcar entrada. Si está apagado, se registra y se alerta.')}
+
+      <div class="card ancho"><div><h2>Elección de horarios</h2><span class="small muted">Cuándo y cómo elige su horario cada persona desde la app.</span></div>
+        <div class="grid-form">
+          <label class="f">Día de elección<select id="aVD" data-k="ventana.dia" data-n="1" data-fijo="1">${ORDEN_SEMANA.map((d) => `<option value="${d}" ${b.ventana.dia === d ? 'selected' : ''}>${cap(DIAS[d])}</option>`).join('')}</select></label>
+          <label class="f">Desde<input type="time" id="aVDe" data-k="ventana.desde" value="${b.ventana.desde}" data-fijo="1"></label>
+          <label class="f">Hasta<input type="time" id="aVH" data-k="ventana.hasta" value="${b.ventana.hasta}" data-fijo="1"></label>
+          ${num('aMax', { k: 'maxTurnosSemana', etq: 'Máximo de turnos por semana' }, b.maxTurnosSemana, { min: 1, max: 21, suf: 'turnos' })}
+        </div>
+        <div>${tog('aEH', b.elegirHoras, 'Elegir hora de entrada y salida', 'Cada persona elige el día y también a qué hora entra y sale, dentro del horario de la tienda de ese día.')}</div>
+        <div class="grid-form">
+          <label class="f">Intervalo de horas<select id="aPaso" data-k="pasoMinutos" data-n="1" data-fijo="1" ${b.elegirHoras ? '' : 'disabled'}>${[15, 30, 60].map((m) => `<option value="${m}" ${b.pasoMinutos === m ? 'selected' : ''}>Cada ${m === 60 ? 'hora' : m + ' minutos'}</option>`).join('')}</select><small>Ej.: con 30 min se puede entrar 4:00 o 4:30.</small></label>
+          ${num('aHMinT', { k: 'horasMinTurno', etq: 'Mínimo de horas por turno' }, b.horasMinTurno, { max: 16, step: 0.5, suf: 'h', ayuda: '0 = sin mínimo' })}
+          ${num('aHMaxT', { k: 'horasMaxTurno', etq: 'Máximo de horas por turno' }, b.horasMaxTurno, { max: 16, step: 0.5, suf: 'h', ayuda: '0 = sin límite' })}
+          ${num('aHMinS', { k: 'horasMinSemana', etq: 'Mínimo de horas por semana' }, b.horasMinSemana, { max: 80, step: 0.5, suf: 'h', ayuda: 'Se avisa a quien no llegue. 0 = sin mínimo' })}
+          ${num('aHMaxS', { k: 'horasMaxSemana', etq: 'Máximo de horas por semana' }, b.horasMaxSemana, { max: 80, step: 0.5, suf: 'h', ayuda: '0 = sin límite' })}
+        </div>
+        <div>${tog('aVSC', b.ventanaSemanaCompleta, 'Elección abierta toda la semana previa', 'Además del horario de elección, se pueden tomar turnos libres de la próxima semana en cualquier momento.')}
+          ${tog('aUno', b.unTurnoPorDia, 'Un solo turno por día', 'Nadie puede tomar dos turnos el mismo día.')}
+          ${tog('aSol', b.permitirSoltar, 'Permitir soltar un turno elegido', 'Mientras la elección esté abierta, cada persona puede devolver un turno que eligió.')}
+          ${tog('aCom', b.mostrarCompaneras, 'Mostrar quién tomó cada turno', 'Si lo apagas, el equipo solo ve "Ocupado" en los turnos de otras personas.')}</div></div>
+
+      <div class="card ancho"><div><h2>Asistencia y GPS</h2></div><div class="grid-form">
+        ${num('aTol', { k: 'toleranciaMin', etq: 'Tolerancia de tardanza' }, b.toleranciaMin, { max: 120, suf: 'min' })}
+        ${num('aInt', { k: 'intervaloControlMin', etq: 'Reporte GPS automático cada' }, b.intervaloControlMin, { min: 5, max: 240, suf: 'min' })}
+        ${num('aPrec', { k: 'precisionMaximaM', etq: 'Precisión GPS máxima aceptada' }, b.precisionMaximaM, { min: 20, max: 1000, suf: 'm' })}
+        ${num('aRec', { k: 'recordatorioHoras', etq: 'Recordatorio antes del turno' }, b.recordatorioHoras, { max: 48, step: 0.5, suf: 'h' })}</div>
+        <div>${tog('aExig', b.exigirUbicacionEnEntrada, 'Exigir estar en la tienda para marcar entrada', 'Si está fuera de la geocerca, la app no deja marcar entrada. Si está apagado, se registra y se alerta.')}
           ${tog('aCub', b.permitirCubrir, 'Permitir cubrir turnos de otra persona', 'Una colaboradora puede marcar entrada en un turno ajeno (queda la alerta "Cubrió turno").')}
           ${tog('aDisp', b.controlDispositivo, 'Controlar el celular de cada persona', 'Alerta si alguien marca desde un celular distinto al habitual (evita que otra persona marque por ella).')}
           ${tog('aVen', b.registrarVentas, 'Registrar ventas del turno (cuadre de caja)', 'Al marcar salida se pide N° de ventas y montos en efectivo, Yape/Plin y tarjeta.')}</div></div>
@@ -45,7 +62,7 @@ export default {
     <div class="row" style="position:sticky;bottom:12px;z-index:5"><div class="card plano row" style="padding:10px 14px;flex-direction:row;box-shadow:var(--shadow)"><button type="button" class="btn-p" data-accion="guardar" ${hay ? '' : 'disabled'}>Guardar cambios</button>${hay ? '<button type="button" data-accion="descartar">Descartar</button>' : ''}<span class="small muted">${hay ? 'Tienes cambios sin guardar.' : 'Todo guardado.'}</span></div></div>
     <div class="grid-2">
       <div class="card"><div><h2>Copia de seguridad</h2><span class="small muted">Descarga toda la base de datos (asistencia, horarios, multas, ventas y equipo). Guárdala en Google Drive una vez por semana.</span></div>
-        <div><a class="btn btn-p" href="/api/panel/respaldo">Descargar respaldo (.db)</a></div></div>
+        <div><a class="btn btn-p" href="/api/panel/respaldo">Descargar respaldo</a></div></div>
       <div class="card"><div><h2>Importar desde la versión anterior</h2><span class="small muted">Carga el archivo <b>index.html</b> anterior o la <b>copia de seguridad (.json)</b> que descargaste de él. Se crean la tienda, las colaboradoras con su mismo usuario y PIN, los turnos, las marcas GPS y las multas.</span></div>
         <input type="file" id="aImportar" accept=".html,.htm,.json,application/json,text/html"></div>
     </div>
@@ -64,7 +81,7 @@ export default {
     const g = document.querySelector('[data-accion="guardar"]'); if (g) g.disabled = false;
   },
   async alCambiar(el, P) {
-    const mapa = { aVSC: 'ventanaSemanaCompleta', aExig: 'exigirUbicacionEnEntrada', aCub: 'permitirCubrir', aDisp: 'controlDispositivo', aVen: 'registrarVentas' };
+    const mapa = { aVSC: 'ventanaSemanaCompleta', aExig: 'exigirUbicacionEnEntrada', aCub: 'permitirCubrir', aDisp: 'controlDispositivo', aVen: 'registrarVentas', aEH: 'elegirHoras', aUno: 'unTurnoPorDia', aSol: 'permitirSoltar', aCom: 'mostrarCompaneras' };
     if (mapa[el.id]) { const e = P.datos.ajustes; borrador ||= { nombre: e.nombre, rubro: e.rubro, zona_horaria: e.zona_horaria, ...structuredClone(e.ajustes) }; borrador[mapa[el.id]] = el.checked; return P.pintar(); }
     if (el.dataset.k) { this.alEscribir(el, P); return P.pintar(); }
     if (el.id === 'aImportar' && el.files?.[0]) {

@@ -19,7 +19,7 @@
     "e2e": "node --disable-warning=ExperimentalWarning test/e2e.mjs",
     "build:demo-web": "node scripts/build-demo-web.mjs",
     "build:netlify": "node scripts/build-netlify.mjs",
-    "test:postgres": "MOTOR=postgres node --disable-warning=ExperimentalWarning --test --test-concurrency=1 test/api.test.js"
+    "test:postgres": "MOTOR=postgres node --disable-warning=ExperimentalWarning --test --test-concurrency=1 test/api.test.js test/horarios.test.js"
   },
   "repository": {
     "type": "git",
