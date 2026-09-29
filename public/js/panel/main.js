@@ -33,6 +33,37 @@ export const P = {
   ir(id) { P.seccion = id; LS.set('nc_seccion', id); document.body.classList.remove('menu-abierto'); window.scrollTo({ top: 0 }); P.refrescar(); },
   esAdmin: () => P.yo?.rol === 'admin',
 };
+const DESCRIPCION = {
+  hoy: 'Asistencia en tiempo real de cada tienda',
+  dashboard: 'Indicadores de asistencia, puntualidad y ventas',
+  horarios: 'Turnos de la semana, plantilla y elección del equipo',
+  multas: 'Multas acumuladas por persona y pagos',
+  equipo: 'Personas, accesos y celulares',
+  reportes: 'Planilla y exportaciones para pagos',
+  tiendas: 'Locales, ubicación y radio permitido',
+  ajustes: 'Reglas del negocio y preferencias',
+  auditoria: 'Registro de todos los cambios',
+};
+const saludoHora = (h) => (h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches');
+
+/** Anima las cifras de los indicadores (0 → valor) al entrar a una sección. */
+function animarCifras(raiz) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  for (const el of raiz.querySelectorAll('.kpi b, .deuda .monto')) {
+    const txt = el.textContent, m = txt.match(/-?\d[\d,]*(\.\d+)?/);
+    if (!m) continue;
+    const fin = Number(m[0].replace(/,/g, '')), dec = (m[1] || '').length - (m[1] ? 1 : 0);
+    if (!isFinite(fin) || fin === 0) continue;
+    const t0 = performance.now(), dur = 900;
+    const paso = (t) => {
+      const k = Math.min(1, (t - t0) / dur), v = fin * (1 - Math.pow(1 - k, 3));
+      el.textContent = txt.replace(m[0], v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }));
+      if (k < 1) requestAnimationFrame(paso); else el.textContent = txt;
+    };
+    requestAnimationFrame(paso);
+  }
+}
+
 let ultimaPintada = null; // para animar la entrada solo al cambiar de sección
 const seccionActual = () => SECCIONES.find((s) => s.id === P.seccion && (!s.soloAdmin || P.esAdmin())) || hoy;
 
@@ -50,18 +81,23 @@ function pintar() {
   const a = P.ahora;
   redibujar(raiz, `<div class="p-app">
     <aside class="lateral" aria-label="Menú">
-      <div class="marca"><img src="/assets/logo.webp" alt="${esc(P.empresa.nombre)}"><span>Panel de control</span></div>
+      <div class="marca"><img src="/assets/logo.webp" alt="${esc(P.empresa.nombre)}"><span>Panel de gestión</span></div>
       <nav>${grupos.map((g) => `<div class="grupo">${g.g}</div>${g.items.map((x) => `<button type="button" data-ir="${x.id}" ${x.id === s.id ? 'aria-current="page"' : ''}>${icono(x.icono, 19)}<span>${x.titulo}</span>${P.badges[x.id] ? `<span class="badge">${P.badges[x.id]}</span>` : ''}</button>`).join('')}`).join('')}</nav>
       <div class="pie"><div class="persona"><span class="avatar">${esc(iniciales(P.yo.nombre))}</span><span style="min-width:0"><b>${esc(nombreBonito(P.yo.nombre))}</b><span class="tiny">${P.yo.rol === 'admin' ? 'Administración' : 'Supervisión'}</span></span></div>
         <button type="button" data-accion-global="miClave">Cambiar mi contraseña</button><button type="button" data-accion-global="salir">Cerrar sesión</button></div>
     </aside>
     <div class="p-main">
-      <header class="p-top"><div class="row nw"><button type="button" class="menu-btn btn-ghost" data-accion-global="menu" aria-label="Menú">${icono('menu')}</button><h1>${esc(s.titulo)}</h1></div>
+      <header class="p-top"><div class="row nw"><button type="button" class="menu-btn btn-ghost" data-accion-global="menu" aria-label="Menú">${icono('menu')}</button><div class="migas"><span>${esc(grupos.find((g) => g.items.includes(s))?.g || '')}</span><h1>${esc(s.titulo)}</h1></div></div>
         <div class="der"><span class="vivo ${P.vivo ? 'on' : ''}" title="Actualización en tiempo real"><i></i>${P.vivo ? 'En vivo' : 'Sin conexión'}</span>
           ${a ? `<span class="reloj-p">${cap(fLarga(a.fecha))} · ${a.hora}${P.relojSimulado ? ' <span class="chip warn">simulado</span>' : ''}</span>` : ''}
           ${P.cargando ? '<span class="spinner"></span>' : ''}</div></header>
-      <main class="p-cont${datos !== undefined && ultimaPintada !== s.id ? ' entra' : ''}" id="contenido">${P.yo.debeCambiar ? '<div class="msg warn"><b>Por seguridad, cambia tu contraseña inicial.</b> <button type="button" class="btn-link" data-accion-global="miClave">Cambiar ahora</button></div>' : ''}${cuerpo}</main>
+      <main class="p-cont${datos !== undefined && ultimaPintada !== s.id ? ' entra' : ''}" id="contenido">
+        <section class="p-hero"><div><div class="p-hero-kicker">${esc(P.empresa.nombre)} · ${a ? cap(fLarga(a.fecha)) : ''}</div>
+          <h2>${s.id === 'hoy' ? `${saludoHora(Number((a?.hora || '12').slice(0, 2)))}, ${esc(primerNombre(P.yo.nombre))}` : esc(s.titulo)}</h2>
+          <p>${esc(DESCRIPCION[s.id] || '')}</p></div>
+          <div class="p-hero-icono" aria-hidden="true">${icono(s.icono, 44)}</div></section>${P.yo.debeCambiar ? '<div class="msg warn"><b>Por seguridad, cambia tu contraseña inicial.</b> <button type="button" class="btn-link" data-accion-global="miClave">Cambiar ahora</button></div>' : ''}${cuerpo}</main>
     </div></div>`);
+  if (datos !== undefined && ultimaPintada !== s.id) animarCifras(raiz);
   if (datos !== undefined) ultimaPintada = s.id;
   s.alPintar?.(datos, P);
 }

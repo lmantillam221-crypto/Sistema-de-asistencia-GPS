@@ -5,7 +5,7 @@
 import { api, onSesionVencida } from '../core/api.js';
 import { toast, redibujar, abrirCapa, cerrarCapa, confirmar, icono } from '../core/ui.js';
 import {
-  $, esc, cap, nombreBonito, primerNombre, soles, fCorta, fLarga, hora12, aMin, aHora, sumarDias, lunesDe, DIAS,
+  $, esc, cap, nombreBonito, primerNombre, iniciales, soles, fCorta, fLarga, hora12, aMin, aHora, sumarDias, lunesDe, DIAS,
   fmtDist, distancia, LS, horasMin, CLASE_ESTADO, ETIQUETA_ESTADO, NOMBRE_MULTA, CLASE_RES, plural,
 } from '../core/util.js';
 import { partes } from '/shared/tiempo.js';
@@ -102,7 +102,11 @@ function pantallaHoy() {
       ${d.ajustes.permitirCubrir && d.otrosHoy.length ? '<button type="button" data-accion="cubrir">Voy a cubrir un turno de hoy</button>' : ''}</div>`;
   }
   const proximos = d.proximos.length ? `<div class="card"><h2>Mis próximos turnos</h2><div>${d.proximos.map((t) => `<div class="lista-row"><span><b>${cap(fLarga(t.fecha))}</b><br><span class="tiny muted">${esc(nombreBonito(t.tienda?.nombre))}</span></span><span class="num">${hora12(t.inicio)} – ${hora12(t.fin)}</span></div>`).join('')}</div></div>` : '';
-  return `<div class="saludo aparece"><div><div class="eyebrow">${cap(DIAS[new Date(p.fecha + 'T12:00:00Z').getUTCDay()])}</div><h1>Hola, ${esc(primerNombre(u.nombre))}</h1></div></div>
+  const hh = Number(p.hora.slice(0, 2)), saludo = hh < 12 ? 'Buenos días' : hh < 19 ? 'Buenas tardes' : 'Buenas noches';
+  const hoyMio = d.turnosHoy.find((t) => t.propio);
+  return `<div class="saludo aparece"><div><div class="eyebrow">${cap(fLarga(p.fecha))}</div><h1>${saludo}, ${esc(primerNombre(u.nombre))}</h1>
+      <p class="small">${hoyMio ? `Tu turno de hoy: ${hora12(hoyMio.inicio)} a ${hora12(hoyMio.fin)}` : d.proximos[0] ? `Próximo turno: ${cap(fLarga(d.proximos[0].fecha))}, ${hora12(d.proximos[0].inicio)}` : 'Que tengas un gran día'}</p></div>
+    <span class="saludo-av" aria-hidden="true">${esc(iniciales(u.nombre))}</span></div>
     ${avisos.join('')}
     ${est.msg ? `<div class="msg ${est.msg.clase}" role="status">${esc(est.msg.texto)}</div>` : ''}
     ${turnos}${sinTurno}

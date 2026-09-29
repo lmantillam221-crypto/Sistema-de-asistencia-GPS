@@ -38,6 +38,7 @@
   --fill: var(--grad); --fill-2: linear-gradient(90deg,#8e8e93,#3a3a3c);
   --mapa-borde: var(--brand-2); --mapa-relleno: var(--brand); --mapa-centro: var(--brand-strong);
   --safe-b: env(safe-area-inset-bottom, 0px);
+  --hero: linear-gradient(125deg, #f58fb0 0%, #e0578a 45%, #9e2a5c 100%); --hero-v: linear-gradient(180deg, #ffc2d4, #e0578a 50%, #9e2a5c);
   /* Compatibilidad con estilos anteriores */
   --berry: #1d1d1f; --berry-2: #3a3a3c; --berry-ink: #ffffff; --sheen: var(--surface);
   --hero-grad: var(--surface); --mine-grad: var(--brand-softer); --soft-grad: var(--surface-2);

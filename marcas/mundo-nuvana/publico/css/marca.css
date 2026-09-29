@@ -6,3 +6,7 @@
   --grad: linear-gradient(180deg, #3b91ad 0%, #2a7590 100%);
   --ring: rgba(51,135,162,.26); --focus: rgba(51,135,162,.45);
 }
+:root {
+  --hero: linear-gradient(125deg, #5aa9c4 0%, #2b7893 45%, #14323f 100%);
+  --hero-v: linear-gradient(180deg, #c0def0 0%, #3387a2 50%, #14323f 100%);
+}
